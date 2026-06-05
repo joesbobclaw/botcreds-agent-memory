@@ -69,6 +69,7 @@ class Botcreds_Memory_Settings {
 	 * Register plugin settings.
 	 */
 	public static function register_settings(): void {
+		// These two calls are safe on any hook (rest_api_init, admin_init).
 		register_setting( 'botcreds_memory_settings', 'botcreds_memory_openai_key', array(
 			'type'              => 'string',
 			'sanitize_callback' => 'sanitize_text_field',
@@ -82,6 +83,11 @@ class Botcreds_Memory_Settings {
 			'default'           => Botcreds_Memory_Embeddings::MODEL,
 			'show_in_rest'      => true,
 		) );
+
+		// Admin-only Settings API functions — skip on REST requests.
+		if ( ! is_admin() ) {
+			return;
+		}
 
 		add_settings_section(
 			'botcreds_memory_vector_section',
