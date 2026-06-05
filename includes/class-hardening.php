@@ -101,9 +101,9 @@ class Botcreds_Memory_Hardening {
 		$uri = isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
 
 		if (
-			str_starts_with( $uri, '/wp-json/' ) ||
-			str_starts_with( $uri, '/wp-login.php' ) ||
-			str_starts_with( $uri, '/wp-admin/' )
+			0 === strpos( $uri, '/wp-json/' ) ||
+			0 === strpos( $uri, '/wp-login.php' ) ||
+			0 === strpos( $uri, '/wp-admin/' )
 		) {
 			return;
 		}
