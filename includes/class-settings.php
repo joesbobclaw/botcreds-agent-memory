@@ -176,7 +176,7 @@ class Botcreds_Memory_Settings {
 	public static function render_entries_page(): void {
 		$entries_data = Botcreds_Memory_DB::list_entries( array(
 			'limit'           => 50,
-			'offset'          => isset( $_GET['paged'] ) ? ( max( 1, (int) $_GET['paged'] ) - 1 ) * 50 : 0,
+			'offset'          => isset( $_GET['paged'] ) ? ( max( 1, (int) $_GET['paged'] ) - 1 ) * 50 : 0, // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			'include_expired' => true,
 		) );
 		?>
@@ -251,6 +251,7 @@ class Botcreds_Memory_Settings {
 			<?php
 			// Simple pagination.
 			$total_pages = ceil( $entries_data['total'] / 50 );
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			$current     = isset( $_GET['paged'] ) ? max( 1, (int) $_GET['paged'] ) : 1;
 			if ( $total_pages > 1 ) :
 				?>

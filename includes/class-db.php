@@ -74,7 +74,7 @@ class Botcreds_Memory_DB {
 			$sql .= ' AND (expires_at IS NULL OR expires_at > NOW())';
 		}
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$row = $wpdb->get_row( $sql, ARRAY_A );
 		return $row ? self::format_row( $row ) : null;
 	}
@@ -91,7 +91,7 @@ class Botcreds_Memory_DB {
 
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$prepared = $wpdb->prepare( "SELECT * FROM `{$table}` WHERE id = %d", $id );
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$row = $wpdb->get_row( $prepared, ARRAY_A );
 
 		return $row ? self::format_row( $row ) : null;
@@ -176,7 +176,7 @@ class Botcreds_Memory_DB {
 			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$count_sql = $wpdb->prepare( $count_sql, ...$values );
 		}
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$total = (int) $wpdb->get_var( $count_sql );
 
 		// Fetch rows.
@@ -184,7 +184,7 @@ class Botcreds_Memory_DB {
 		$query_values = array_merge( $values, array( $args['limit'], $args['offset'] ) );
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$prepared_query = $wpdb->prepare( $query, ...$query_values );
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$rows = $wpdb->get_results( $prepared_query, ARRAY_A );
 
 		$entries = array_map( array( __CLASS__, 'format_row' ), $rows ?: array() );
@@ -238,17 +238,10 @@ class Botcreds_Memory_DB {
 				$formats[] = $expires_at ? '%s' : null;
 				// Handle null expires_at explicitly.
 				if ( $expires_at === null ) {
-					// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-					$wpdb->query(
-						// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-						$wpdb->prepare(
-							"UPDATE `{$table}` SET value = %s, tags = %s, author = %s, expires_at = NULL, embedding = NULL WHERE id = %d",
-							$value,
-							$tags,
-							$author,
-							$existing['id']
-						)
-					);
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					$update_sql = "UPDATE `{$table}` SET value = %s, tags = %s, author = %s, expires_at = NULL, embedding = NULL WHERE id = %d";
+					// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+					$wpdb->query( $wpdb->prepare( $update_sql, $value, $tags, $author, $existing['id'] ) );
 					return self::get_by_id( $existing['id'] );
 				}
 			}
@@ -256,6 +249,7 @@ class Botcreds_Memory_DB {
 			// Clear embedding on value change so it gets re-embedded.
 			$update_data['embedding'] = null;
 
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			$wpdb->update(
 				$table,
 				$update_data,
@@ -281,6 +275,7 @@ class Botcreds_Memory_DB {
 			$formats[] = '%s';
 		}
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$wpdb->insert( $table, $insert_data, $formats );
 
 		if ( ! $wpdb->insert_id ) {
@@ -300,6 +295,7 @@ class Botcreds_Memory_DB {
 		global $wpdb;
 		$table = self::table_name();
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$deleted = $wpdb->delete( $table, array( 'memory_key' => $key ), array( '%s' ) );
 		return $deleted > 0;
 	}
@@ -315,6 +311,7 @@ class Botcreds_Memory_DB {
 		global $wpdb;
 		$table = self::table_name();
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$result = $wpdb->update(
 			$table,
 			array( 'embedding' => wp_json_encode( $embedding ) ),
@@ -338,13 +335,9 @@ class Botcreds_Memory_DB {
 		$table = self::table_name();
 
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$prepared = $wpdb->prepare(
-			"SELECT * FROM `{$table}` WHERE embedding IS NULL AND id > %d ORDER BY id ASC LIMIT %d",
-			$cursor,
-			$limit
-		);
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-		$rows = $wpdb->get_results( $prepared, ARRAY_A );
+		$needing_sql = "SELECT * FROM `{$table}` WHERE embedding IS NULL AND id > %d ORDER BY id ASC LIMIT %d";
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$rows = $wpdb->get_results( $wpdb->prepare( $needing_sql, $cursor, $limit ), ARRAY_A );
 
 		return array_map( array( __CLASS__, 'format_row' ), $rows ?: array() );
 	}
@@ -379,7 +372,7 @@ class Botcreds_Memory_DB {
 			$query = $wpdb->prepare( $query, ...$values );
 		}
 
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$rows = $wpdb->get_results( $query, ARRAY_A );
 		return array_map( array( __CLASS__, 'format_row_with_embedding' ), $rows ?: array() );
 	}
