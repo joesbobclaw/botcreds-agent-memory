@@ -73,12 +73,14 @@ class Botcreds_Memory_Settings {
 			'type'              => 'string',
 			'sanitize_callback' => 'sanitize_text_field',
 			'default'           => '',
+			'show_in_rest'      => true,
 		) );
 
 		register_setting( 'botcreds_memory_settings', 'botcreds_memory_embedding_model', array(
 			'type'              => 'string',
 			'sanitize_callback' => 'sanitize_text_field',
 			'default'           => Botcreds_Memory_Embeddings::MODEL,
+			'show_in_rest'      => true,
 		) );
 
 		add_settings_section(
