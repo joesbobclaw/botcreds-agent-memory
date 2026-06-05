@@ -67,12 +67,14 @@ class Botcreds_Memory_DB {
 		global $wpdb;
 		$table = self::table_name();
 
-		$sql = $wpdb->prepare( "SELECT * FROM {$table} WHERE memory_key = %s", $key );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$sql = $wpdb->prepare( "SELECT * FROM `{$table}` WHERE memory_key = %s", $key );
 
 		if ( ! $include_expired ) {
 			$sql .= ' AND (expires_at IS NULL OR expires_at > NOW())';
 		}
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$row = $wpdb->get_row( $sql, ARRAY_A );
 		return $row ? self::format_row( $row ) : null;
 	}
@@ -87,10 +89,10 @@ class Botcreds_Memory_DB {
 		global $wpdb;
 		$table = self::table_name();
 
-		$row = $wpdb->get_row(
-			$wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $id ),
-			ARRAY_A
-		);
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$prepared = $wpdb->prepare( "SELECT * FROM `{$table}` WHERE id = %d", $id );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$row = $wpdb->get_row( $prepared, ARRAY_A );
 
 		return $row ? self::format_row( $row ) : null;
 	}
@@ -169,19 +171,21 @@ class Botcreds_Memory_DB {
 		}
 
 		// Count total.
-		$count_sql = "SELECT COUNT(*) FROM {$table} {$where_sql}";
+		$count_sql = "SELECT COUNT(*) FROM `{$table}` {$where_sql}"; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		if ( ! empty( $values ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$count_sql = $wpdb->prepare( $count_sql, ...$values );
 		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$total = (int) $wpdb->get_var( $count_sql );
 
 		// Fetch rows.
-		$query = "SELECT * FROM {$table} {$where_sql} ORDER BY updated_at DESC LIMIT %d OFFSET %d";
+		$query = "SELECT * FROM `{$table}` {$where_sql} ORDER BY updated_at DESC LIMIT %d OFFSET %d"; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$query_values = array_merge( $values, array( $args['limit'], $args['offset'] ) );
-		$rows = $wpdb->get_results(
-			$wpdb->prepare( $query, ...$query_values ),
-			ARRAY_A
-		);
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$prepared_query = $wpdb->prepare( $query, ...$query_values );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$rows = $wpdb->get_results( $prepared_query, ARRAY_A );
 
 		$entries = array_map( array( __CLASS__, 'format_row' ), $rows ?: array() );
 
@@ -234,9 +238,11 @@ class Botcreds_Memory_DB {
 				$formats[] = $expires_at ? '%s' : null;
 				// Handle null expires_at explicitly.
 				if ( $expires_at === null ) {
+					// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 					$wpdb->query(
+						// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 						$wpdb->prepare(
-							"UPDATE {$table} SET value = %s, tags = %s, author = %s, expires_at = NULL, embedding = NULL WHERE id = %d",
+							"UPDATE `{$table}` SET value = %s, tags = %s, author = %s, expires_at = NULL, embedding = NULL WHERE id = %d",
 							$value,
 							$tags,
 							$author,
@@ -331,14 +337,14 @@ class Botcreds_Memory_DB {
 		global $wpdb;
 		$table = self::table_name();
 
-		$rows = $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT * FROM {$table} WHERE embedding IS NULL AND id > %d ORDER BY id ASC LIMIT %d",
-				$cursor,
-				$limit
-			),
-			ARRAY_A
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$prepared = $wpdb->prepare(
+			"SELECT * FROM `{$table}` WHERE embedding IS NULL AND id > %d ORDER BY id ASC LIMIT %d",
+			$cursor,
+			$limit
 		);
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$rows = $wpdb->get_results( $prepared, ARRAY_A );
 
 		return array_map( array( __CLASS__, 'format_row' ), $rows ?: array() );
 	}
@@ -366,12 +372,14 @@ class Botcreds_Memory_DB {
 		}
 
 		$where_sql = 'WHERE ' . implode( ' AND ', $where );
-		$query     = "SELECT * FROM {$table} {$where_sql} ORDER BY updated_at DESC";
+		$query     = "SELECT * FROM `{$table}` {$where_sql} ORDER BY updated_at DESC"; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		if ( ! empty( $values ) ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$query = $wpdb->prepare( $query, ...$values );
 		}
 
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$rows = $wpdb->get_results( $query, ARRAY_A );
 		return array_map( array( __CLASS__, 'format_row_with_embedding' ), $rows ?: array() );
 	}
@@ -384,7 +392,8 @@ class Botcreds_Memory_DB {
 	public static function count_entries(): int {
 		global $wpdb;
 		$table = self::table_name();
-		return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" );
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		return (int) $wpdb->get_var( "SELECT COUNT(*) FROM `{$table}`" );
 	}
 
 	/**
@@ -395,7 +404,8 @@ class Botcreds_Memory_DB {
 	public static function count_embedded(): int {
 		global $wpdb;
 		$table = self::table_name();
-		return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table} WHERE embedding IS NOT NULL" );
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		return (int) $wpdb->get_var( "SELECT COUNT(*) FROM `{$table}` WHERE embedding IS NOT NULL" );
 	}
 
 	/**

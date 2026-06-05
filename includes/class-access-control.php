@@ -127,6 +127,7 @@ class Botcreds_Memory_Access_Control {
 		$prefixes = get_user_meta( $user->ID, self::META_KEY, true );
 		?>
 		<h3><?php esc_html_e( 'Agent Memory Access', 'botcreds-agent-memory' ); ?></h3>
+		<?php wp_nonce_field( 'botcreds_memory_user_profile', 'botcreds_memory_user_nonce' ); ?>
 		<table class="form-table" role="presentation">
 			<tr>
 				<th>
@@ -161,6 +162,11 @@ class Botcreds_Memory_Access_Control {
 	 */
 	public static function save_user_fields( int $user_id ): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		if ( ! isset( $_POST['botcreds_memory_user_nonce'] ) ||
+		     ! wp_verify_nonce( sanitize_key( $_POST['botcreds_memory_user_nonce'] ), 'botcreds_memory_user_profile' ) ) {
 			return;
 		}
 

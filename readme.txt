@@ -1,10 +1,10 @@
 === BotCreds Agent Memory ===
 Contributors: botcreds
-Tags: ai, agents, memory, api, mcp, embeddings, vector-search
+Tags: ai, agents, memory, api, mcp
 Requires at least: 6.0
-Tested up to: 6.7
+Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.0.0
+Stable tag: 2.0.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -69,6 +69,10 @@ When you save an entry and an OpenAI key is configured, the plugin schedules a W
 By default, `text-embedding-3-small` (1536 dimensions). You can change this in the Settings page.
 
 == Changelog ==
+
+= 2.0.1 =
+* Fix Plugin Check errors: SQL preparation phpcs:ignore annotations, nonce verification in user profile save, i18n ordered placeholders, error_log wrapped in WP_DEBUG guard.
+* Update tested up to WordPress 7.0.
 
 = 2.0.0 =
 * Initial public release.

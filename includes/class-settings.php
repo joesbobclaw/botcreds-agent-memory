@@ -192,8 +192,8 @@ class Botcreds_Memory_Settings {
 				<?php if ( Botcreds_Memory_Embeddings::is_enabled() ) : ?>
 					&bull;
 					<?php echo esc_html( sprintf(
-						/* translators: %d: embedded count, %d: total count */
-						__( '%d/%d with embeddings', 'botcreds-agent-memory' ),
+						/* translators: 1: number of entries with embeddings, 2: total entries */
+						__( '%1$d/%2$d with embeddings', 'botcreds-agent-memory' ),
 						Botcreds_Memory_DB::count_embedded(),
 						$entries_data['total']
 					) ); ?>
@@ -234,10 +234,11 @@ class Botcreds_Memory_Settings {
 									<?php
 									// Check if entry has embedding by looking at DB directly.
 									global $wpdb;
-									$has_embedding = $wpdb->get_var( $wpdb->prepare(
-										"SELECT embedding IS NOT NULL FROM {$wpdb->prefix}botcreds_memory WHERE id = %d",
-										$entry['id']
-									) );
+									$emb_table = $wpdb->prefix . 'botcreds_memory';
+									// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+									$emb_sql = $wpdb->prepare( "SELECT embedding IS NOT NULL FROM `{$emb_table}` WHERE id = %d", $entry['id'] );
+									// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+									$has_embedding = $wpdb->get_var( $emb_sql );
 									echo $has_embedding ? '✓' : '—';
 									?>
 								</td>

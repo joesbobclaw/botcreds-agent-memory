@@ -67,7 +67,7 @@ class Botcreds_Memory_Embeddings {
 		);
 
 		if ( is_wp_error( $response ) ) {
-			error_log( 'BotCreds Memory: OpenAI embedding request failed: ' . $response->get_error_message() );
+			self::log( 'OpenAI embedding request failed: ' . $response->get_error_message() );
 			return null;
 		}
 
@@ -76,7 +76,7 @@ class Botcreds_Memory_Embeddings {
 
 		if ( $code !== 200 || empty( $body['data'][0]['embedding'] ) ) {
 			$error_msg = $body['error']['message'] ?? 'Unknown error';
-			error_log( "BotCreds Memory: OpenAI embedding failed (HTTP {$code}): {$error_msg}" );
+			self::log( "OpenAI embedding failed (HTTP {$code}): {$error_msg}" );
 			return null;
 		}
 
@@ -182,7 +182,7 @@ class Botcreds_Memory_Embeddings {
 		$entry = Botcreds_Memory_DB::get_by_id( $entry_id );
 
 		if ( ! $entry ) {
-			error_log( "BotCreds Memory: Cannot embed entry #{$entry_id} — not found." );
+			self::log( "Cannot embed entry #{$entry_id} — not found." );
 			return;
 		}
 
@@ -191,7 +191,7 @@ class Botcreds_Memory_Embeddings {
 		$embedding = self::embed( $text );
 
 		if ( ! $embedding ) {
-			error_log( "BotCreds Memory: Embedding failed for entry #{$entry_id}." );
+			self::log( "Embedding failed for entry #{$entry_id}." );
 			return;
 		}
 
@@ -251,5 +251,16 @@ class Botcreds_Memory_Embeddings {
 
 		// Schedule immediate execution.
 		wp_schedule_single_event( time(), 'botcreds_memory_backfill_embeddings' );
+	}
+	/**
+	 * Log a debug message when WP_DEBUG is enabled.
+	 *
+	 * @param string $message The message to log.
+	 */
+	private static function log( string $message ): void {
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( '[BotCreds Memory] ' . $message );
+		}
 	}
 }
