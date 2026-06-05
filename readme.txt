@@ -1,0 +1,86 @@
+=== BotCreds Agent Memory ===
+Contributors: botcreds
+Tags: ai, agents, memory, api, mcp, embeddings, vector-search
+Requires at least: 6.0
+Tested up to: 6.7
+Requires PHP: 7.4
+Stable tag: 2.0.0
+License: GPLv2 or later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
+
+Portable memory store for AI agents. REST API + MCP endpoint. KV mode by default, semantic vector search when OpenAI key is configured.
+
+== Description ==
+
+BotCreds Agent Memory gives your AI agents a persistent, structured memory store accessible via WordPress REST API and MCP (Model Context Protocol).
+
+**Two modes of operation:**
+
+* **KV Mode (default)** — Simple key-value store with tags, expiry, and text search. No external dependencies. Works out of the box.
+* **Vector Mode** — Add an OpenAI API key to unlock semantic search powered by embeddings. Entries are automatically embedded and searchable by meaning, not just keywords.
+
+**Key features:**
+
+* REST API with full CRUD (create, read, update, delete)
+* MCP endpoint for AI agent tool integration
+* Namespace-based access control per WordPress user
+* Automatic embedding generation via WP-Cron
+* Bulk backfill for existing entries
+* Expiry support for temporary memories
+* Tag-based filtering and organization
+* WordPress Application Password authentication
+
+**Built for AI agents, by AI agents.**
+
+Use this plugin to give your AI assistants persistent memory across sessions, share context between multiple agents, or build agent workflows that remember.
+
+== Installation ==
+
+1. Upload the `botcreds-agent-memory` folder to `/wp-content/plugins/`.
+2. Activate the plugin through the **Plugins** menu in WordPress.
+3. (Optional) Go to **Agent Memory → Settings** and add your OpenAI API key to enable vector mode.
+4. Create a WordPress Application Password for your agent under **Users → Profile → Application Passwords**.
+5. Use the REST API at `/wp-json/botcreds-memory/v1/` with Basic Auth.
+
+== Frequently Asked Questions ==
+
+= Do I need an OpenAI API key? =
+
+No. Without a key, the plugin works in KV (key-value) mode with text-based search. An OpenAI key enables semantic vector search via embeddings.
+
+= How does authentication work? =
+
+The plugin uses WordPress Application Passwords. Create one under **Users → Profile → Application Passwords**, then use HTTP Basic Auth with your username and the generated password.
+
+= Can I restrict which keys a user can access? =
+
+Yes. Go to **Users → Edit User → Agent Memory Access** and set allowed key prefixes. The user will only be able to read and write keys starting with those prefixes. Leave blank for full access.
+
+= What is MCP? =
+
+MCP (Model Context Protocol) is a standard for AI agents to discover and use tools. The plugin exposes an MCP manifest at `/wp-json/botcreds-memory/v1/mcp` and a tool call endpoint at `/wp-json/botcreds-memory/v1/mcp/call`.
+
+= How are embeddings generated? =
+
+When you save an entry and an OpenAI key is configured, the plugin schedules a WP-Cron event to generate the embedding asynchronously. Existing entries can be backfilled from the Settings page.
+
+= What embedding model is used? =
+
+By default, `text-embedding-3-small` (1536 dimensions). You can change this in the Settings page.
+
+== Changelog ==
+
+= 2.0.0 =
+* Initial public release.
+* KV mode: key-value store with tags, expiry, and text search.
+* Vector mode: semantic search via OpenAI embeddings.
+* REST API: full CRUD under `/wp-json/botcreds-memory/v1/`.
+* MCP endpoint: manifest and tool call handler.
+* Access control: per-user namespace restrictions.
+* Admin UI: entries browser, settings page, access control overview.
+* WP-Cron: automatic embedding generation and bulk backfill.
+
+== Upgrade Notice ==
+
+= 2.0.0 =
+Initial release. Install and activate to get started.

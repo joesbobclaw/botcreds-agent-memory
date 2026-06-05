@@ -1,0 +1,58 @@
+/**
+ * BotCreds Agent Memory — Admin Styles
+ *
+ * Minimal styles for the plugin admin pages.
+ */
+
+/* Wrap */
+.botcreds-memory-wrap {
+	max-width: 1200px;
+}
+
+/* Value cell: constrain width, allow text wrapping */
+.botcreds-value-cell {
+	max-width: 300px;
+	word-wrap: break-word;
+	overflow-wrap: break-word;
+}
+
+/* Tag badges */
+.botcreds-tag {
+	display: inline-block;
+	padding: 2px 8px;
+	margin: 1px 2px;
+	font-size: 12px;
+	line-height: 1.4;
+	background: #e5e5e5;
+	border-radius: 3px;
+	color: #333;
+}
+
+/* Key column code styling */
+.column-key code {
+	font-size: 12px;
+	background: #f0f0f0;
+	padding: 2px 6px;
+	border-radius: 3px;
+}
+
+/* Settings page: OpenAI key field */
+#botcreds_memory_openai_key {
+	font-family: monospace;
+}
+
+/* Pagination spacing */
+.botcreds-memory-wrap .tablenav-pages .button {
+	margin: 0 2px;
+}
+
+/* Access control table: prefix codes */
+.botcreds-memory-wrap td code {
+	display: inline-block;
+	margin-bottom: 2px;
+}
+
+/* Plugin info table alignment */
+.botcreds-memory-wrap .form-table th {
+	width: 200px;
+}
