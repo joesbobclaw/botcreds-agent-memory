@@ -237,7 +237,7 @@ class Botcreds_Memory_Settings {
 									$emb_table = $wpdb->prefix . 'botcreds_memory';
 									// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 									$emb_sql = $wpdb->prepare( "SELECT embedding IS NOT NULL FROM `{$emb_table}` WHERE id = %d", $entry['id'] );
-									// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+									// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 									$has_embedding = $wpdb->get_var( $emb_sql );
 									echo $has_embedding ? '✓' : '—';
 									?>

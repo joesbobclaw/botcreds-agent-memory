@@ -184,12 +184,13 @@ class Botcreds_Memory_Access_Control {
 	 * @return array Array of user data with prefixes.
 	 */
 	public static function get_all_restricted_users(): array {
-		// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key, WordPress.DB.SlowDBQuery.slow_db_query_meta_value
+		// phpcs:disable WordPress.DB.SlowDBQuery.slow_db_query_meta_key, WordPress.DB.SlowDBQuery.slow_db_query_meta_value
 		$users = get_users( array(
 			'meta_key'     => self::META_KEY,
 			'meta_compare' => '!=',
 			'meta_value'   => '',
 		) );
+		// phpcs:enable WordPress.DB.SlowDBQuery.slow_db_query_meta_key, WordPress.DB.SlowDBQuery.slow_db_query_meta_value
 
 		$result = array();
 		foreach ( $users as $user ) {
