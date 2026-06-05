@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BotCreds Agent Memory
  * Description: Portable memory store for AI agents. REST API + MCP endpoint. KV mode by default, semantic vector search when OpenAI key is configured.
- * Version: 2.0.3
+ * Version: 2.0.4
  * Author: Joe Boydston
  * Author URI: https://botcreds.com
  * License: GPL-2.0-or-later
@@ -26,11 +26,13 @@ require_once BOTCREDS_MEMORY_DIR . 'includes/class-embeddings.php';
 require_once BOTCREDS_MEMORY_DIR . 'includes/class-rest-api.php';
 require_once BOTCREDS_MEMORY_DIR . 'includes/class-mcp.php';
 require_once BOTCREDS_MEMORY_DIR . 'includes/class-settings.php';
+require_once BOTCREDS_MEMORY_DIR . 'includes/class-hardening.php';
 
 /*
  * Activation: create the custom table.
  */
 register_activation_hook( BOTCREDS_MEMORY_FILE, array( 'Botcreds_Memory_DB', 'create_table' ) );
+register_activation_hook( BOTCREDS_MEMORY_FILE, array( 'Botcreds_Memory_Hardening', 'on_activation' ) );
 
 /*
  * Deactivation: clean up all scheduled cron events.
@@ -61,6 +63,7 @@ add_action( 'botcreds_memory_backfill_embeddings', array( 'Botcreds_Memory_Embed
 /*
  * Register REST API routes.
  */
+Botcreds_Memory_Hardening::init();
 add_action( 'rest_api_init', array( 'Botcreds_Memory_REST_API', 'register_routes' ) );
 add_action( 'rest_api_init', array( 'Botcreds_Memory_MCP', 'register_routes' ) );
 
