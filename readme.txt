@@ -1,5 +1,5 @@
 === BotCreds Agent Memory ===
-Contributors: jboydston
+Contributors: jboydston, botcreds
 Tags: ai, agents, memory, api, mcp
 Requires at least: 6.0
 Tested up to: 7.0
@@ -68,11 +68,40 @@ When you save an entry and an OpenAI key is configured, the plugin schedules a W
 
 By default, `text-embedding-3-small` (1536 dimensions). You can change this in the Settings page.
 
+== External services ==
+
+This plugin optionally connects to the OpenAI API to generate vector embeddings for semantic search.
+
+* **Service:** OpenAI Embeddings API (`https://api.openai.com/v1/embeddings`)
+* **When it is used:** Only when an OpenAI API key is configured in the plugin settings. Without a key, the plugin operates in KV-only mode and makes no external requests.
+* **What is sent:** The text content of memory entries you explicitly write or update.
+* **OpenAI Terms of Use:** https://openai.com/policies/terms-of-use
+* **OpenAI Privacy Policy:** https://openai.com/policies/privacy-policy
+
 == Changelog ==
 
 = 2.0.9 =
 * Fix: Replace non-standard bcam prefix with botcreds_memory in admin page slug, hook names, nonce actions, and POST key names for WordPress.org review compliance.
 
+= 2.0.8 =
+* Fix fatal error on settings pages: guard Settings API registration with is_admin() check.
+
+= 2.0.7 =
+* Fix PHP 7.4 compatibility: replace str_starts_with() with strpos()-based equivalent.
+
+= 2.0.6 =
+* Register plugin settings on rest_api_init so show_in_rest works correctly.
+* Expose OpenAI key and embedding model settings via the REST API.
+
+= 2.0.4 =
+* Security hardening: return 403 for unauthenticated HTML requests to the frontend.
+
+= 2.0.3 =
+* MCP: implement proper JSON-RPC 2.0 protocol for tool calls and responses.
+
+= 2.0.2 =
+* Update plugin author to Joe Boydston.
+* Add jboydston as WordPress.org contributor.
 
 = 2.0.1 =
 * Fix Plugin Check errors: SQL preparation phpcs:ignore annotations, nonce verification in user profile save, i18n ordered placeholders, error_log wrapped in WP_DEBUG guard.
@@ -89,6 +118,12 @@ By default, `text-embedding-3-small` (1536 dimensions). You can change this in t
 * WP-Cron: automatic embedding generation and bulk backfill.
 
 == Upgrade Notice ==
+
+= 2.0.8 =
+Fixes a fatal error on settings pages. Update recommended.
+
+= 2.0.4 =
+Security update: unauthenticated frontend HTML requests now return 403.
 
 = 2.0.0 =
 Initial release. Install and activate to get started.
