@@ -25,7 +25,7 @@ class Botcreds_Memory_Admin {
 	 */
 	public static function init() {
 		add_action( 'admin_menu', array( __CLASS__, 'register_menu' ) );
-		add_action( 'admin_post_bcam_delete', array( __CLASS__, 'handle_delete' ) );
+		add_action( 'admin_post_botcreds_memory_delete', array( __CLASS__, 'handle_delete' ) );
 	}
 
 	/**
@@ -36,7 +36,7 @@ class Botcreds_Memory_Admin {
 			__( 'Agent Memory', 'botcreds-agent-memory' ),
 			__( 'Agent Memory', 'botcreds-agent-memory' ),
 			'manage_options',
-			'bcam-entries',
+			'botcreds-memory-entries',
 			array( __CLASS__, 'render_page' ),
 			'dashicons-database',
 			81
@@ -51,9 +51,9 @@ class Botcreds_Memory_Admin {
 			wp_die( esc_html__( 'Not allowed.', 'botcreds-agent-memory' ), 403 );
 		}
 
-		check_admin_referer( 'bcam_delete_entry' );
+		check_admin_referer( 'botcreds_memory_delete_entry' );
 
-		$key = isset( $_POST['bcam_key'] ) ? sanitize_text_field( wp_unslash( $_POST['bcam_key'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$key = isset( $_POST['botcreds_memory_key'] ) ? sanitize_text_field( wp_unslash( $_POST['botcreds_memory_key'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
 
 		if ( $key ) {
 			Botcreds_Memory_DB::delete_by_key( $key );
@@ -61,7 +61,7 @@ class Botcreds_Memory_Admin {
 
 		wp_safe_redirect( add_query_arg(
 			array(
-				'page'    => 'bcam-entries',
+				'page'    => 'botcreds-memory-entries',
 				'deleted' => $key ? '1' : '0',
 			),
 			admin_url( 'admin.php' )
