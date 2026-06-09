@@ -1,10 +1,10 @@
 === BotCreds Agent Memory ===
 Contributors: jboydston
-Tags: ai, agents, memory, api, mcp
-Requires at least: 6.0
+Tags: ai-agents, mcp, memory, rest-api, vector-search
+Requires at least: 5.6
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.0.9
+Stable tag: 2.0.10
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -79,6 +79,11 @@ This plugin optionally connects to the OpenAI API to generate vector embeddings 
 * **OpenAI Privacy Policy:** https://openai.com/policies/privacy-policy
 
 == Changelog ==
+
+= 2.0.10 =
+* Fix: Remove invalid `botcreds` contributor (not a WordPress.org username).
+* Fix: Add Plugin URI and License URI to plugin header to match BotCreds branding standards.
+* Fix: Align tags to hyphenated format and lower Requires at least to 5.6.
 
 = 2.0.9 =
 * Fix: Replace non-standard bcam prefix with botcreds_memory in admin page slug, hook names, nonce actions, and POST key names for WordPress.org review compliance.

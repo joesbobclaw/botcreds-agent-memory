@@ -1,19 +1,23 @@
 <?php
 /**
  * Plugin Name: BotCreds Agent Memory
+ * Plugin URI:  https://botcreds.com/
  * Description: Portable memory store for AI agents. REST API + MCP endpoint. KV mode by default, semantic vector search when OpenAI key is configured.
- * Version: 2.0.9
- * Author: Joe Boydston
- * Author URI: https://botcreds.com
- * License: GPL-2.0-or-later
+ * Version:     2.0.10
+ * Author:      Joe Boydston
+ * Author URI:  https://botcreds.com
+ * License:     GPL-2.0-or-later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: botcreds-agent-memory
+ * Requires at least: 5.6
+ * Requires PHP: 7.4
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'BOTCREDS_MEMORY_VERSION', '2.0.9' );
+define( 'BOTCREDS_MEMORY_VERSION', '2.0.10' );
 define( 'BOTCREDS_MEMORY_FILE', __FILE__ );
 define( 'BOTCREDS_MEMORY_DIR', plugin_dir_path( __FILE__ ) );
 
