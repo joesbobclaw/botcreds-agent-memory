@@ -1,5 +1,5 @@
 === BotCreds Agent Memory ===
-Contributors: jboydston, botcreds
+Contributors: jboydston
 Tags: ai, agents, memory, api, mcp
 Requires at least: 6.0
 Tested up to: 7.0
