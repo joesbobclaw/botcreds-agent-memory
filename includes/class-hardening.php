@@ -3,10 +3,10 @@
  * BotCreds Agent Memory — Hardening Module
  *
  * Locks down the WordPress install so it behaves as an API-only backend.
- * Enabled by default. Disable by adding:
- *   define( 'BOTCREDS_MEMORY_HARDENED', false );
+ * Disabled by default. Enable via Agent Memory > Settings > Site Hardening, or by adding:
+ *   define( 'BOTCREDS_MEMORY_HARDENED', true );
  * to wp-config.php, or by setting the option:
- *   wp option update botcreds_memory_hardened 0
+ *   wp option update botcreds_memory_hardened 1
  *
  * What this class does:
  *   1. Strips /wp/v2/users endpoints for unauthenticated requests
@@ -42,7 +42,7 @@ class Botcreds_Memory_Hardening {
 		if ( defined( 'BOTCREDS_MEMORY_HARDENED' ) ) {
 			return (bool) BOTCREDS_MEMORY_HARDENED;
 		}
-		return (bool) get_option( 'botcreds_memory_hardened', 1 );
+		return (bool) get_option( 'botcreds_memory_hardened', 0 );
 	}
 
 	/**
