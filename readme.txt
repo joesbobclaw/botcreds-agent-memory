@@ -4,7 +4,7 @@ Tags: ai-agents, mcp, memory, rest-api, vector-search
 Requires at least: 5.6
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.0.10
+Stable tag: 2.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,9 +81,9 @@ This plugin optionally connects to the OpenAI API to generate vector embeddings 
 == Changelog ==
 
 = 2.1.0 =
-* Change: Security hardening is now **disabled by default**. Existing sites are unaffected (option was already stored); fresh installs no longer block the front-end on activation.
-* New: Hardening can be toggled on/off from Settings → Agent Memory → Security Hardening. No more wp-config.php editing required.
-* New: Security Hardening status row added to the Plugin Info table on the Settings page.
+* Change: Site hardening is now disabled by default. It was previously enabled by default, which could block front-end traffic on existing sites.
+* Add: Hardening toggle added to Agent Memory > Settings > Site Hardening with clear warning label.
+* Add: `botcreds_memory_hardened` option registered via Settings API (sanitized, integer, default 0).
 
 = 2.0.10 =
 * Fix: Remove invalid `botcreds` contributor (not a WordPress.org username).

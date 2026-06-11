@@ -70,6 +70,13 @@ class Botcreds_Memory_Settings {
 	 */
 	public static function register_settings(): void {
 		// These two calls are safe on any hook (rest_api_init, admin_init).
+		register_setting( 'botcreds_memory_settings', 'botcreds_memory_hardened', array(
+			'type'              => 'integer',
+			'sanitize_callback' => 'absint',
+			'default'           => 0,
+			'show_in_rest'      => false,
+		) );
+
 		register_setting( 'botcreds_memory_settings', 'botcreds_memory_openai_key', array(
 			'type'              => 'string',
 			'sanitize_callback' => 'sanitize_text_field',
@@ -88,6 +95,23 @@ class Botcreds_Memory_Settings {
 		if ( ! is_admin() ) {
 			return;
 		}
+
+		add_settings_section(
+			'botcreds_memory_hardening_section',
+			__( 'Site Hardening', 'botcreds-agent-memory' ),
+			function () {
+				echo '<p>' . esc_html__( 'Hardening locks this site down to API-only mode. Only enable this if WordPress is dedicated exclusively to agent memory — it will block all front-end traffic with a 403 for unauthenticated visitors.', 'botcreds-agent-memory' ) . '</p>';
+			},
+			'botcreds-memory-settings'
+		);
+
+		add_settings_field(
+			'botcreds_memory_hardened',
+			__( 'Enable Hardening', 'botcreds-agent-memory' ),
+			array( __CLASS__, 'render_hardening_field' ),
+			'botcreds-memory-settings',
+			'botcreds_memory_hardening_section'
+		);
 
 		add_settings_section(
 			'botcreds_memory_vector_section',
@@ -124,6 +148,31 @@ class Botcreds_Memory_Settings {
 				'success'
 			);
 		}
+	}
+
+	/**
+	 * Render the hardening toggle field.
+	 */
+	public static function render_hardening_field(): void {
+		$enabled = (bool) get_option( 'botcreds_memory_hardened', 0 );
+		?>
+		<label>
+			<input
+				type="checkbox"
+				name="botcreds_memory_hardened"
+				id="botcreds_memory_hardened"
+				value="1"
+				<?php checked( $enabled ); ?>
+			/>
+			<?php esc_html_e( 'Lock site to API-only mode', 'botcreds-agent-memory' ); ?>
+		</label>
+		<p class="description" style="color:#d63638;font-weight:600;">
+			<?php esc_html_e( '⚠ Warning: enabling this will 403 all front-end traffic for unauthenticated visitors. Only use on a dedicated agent-memory backend site.', 'botcreds-agent-memory' ); ?>
+		</p>
+		<p class="description">
+			<?php esc_html_e( 'When enabled: blocks front-end, strips /users REST endpoints, disables XML-RPC, forces noindex, and adds security headers.', 'botcreds-agent-memory' ); ?>
+		</p>
+		<?php
 	}
 
 	/**
