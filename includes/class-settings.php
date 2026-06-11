@@ -353,6 +353,10 @@ class Botcreds_Memory_Settings {
 					<td><?php echo esc_html( $total ); ?></td>
 				</tr>
 				<tr>
+					<th><?php esc_html_e( 'Security Hardening', 'botcreds-agent-memory' ); ?></th>
+					<td><?php echo Botcreds_Memory_Hardening::is_enabled() ? esc_html__( 'Enabled', 'botcreds-agent-memory' ) : esc_html__( 'Disabled', 'botcreds-agent-memory' ); ?></td>
+				</tr>
+				<tr>
 					<th><?php esc_html_e( 'Vector Mode', 'botcreds-agent-memory' ); ?></th>
 					<td><?php echo Botcreds_Memory_Embeddings::is_enabled() ? esc_html__( 'Enabled', 'botcreds-agent-memory' ) : esc_html__( 'Disabled', 'botcreds-agent-memory' ); ?></td>
 				</tr>
