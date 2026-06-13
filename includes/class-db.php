@@ -478,11 +478,9 @@ class Botcreds_Memory_DB {
 		global $wpdb;
 		$table = self::table_name();
 
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-		$rows = $wpdb->get_results(
-			"SELECT namespace, COUNT(*) as count FROM `{$table}` WHERE namespace IS NOT NULL GROUP BY namespace ORDER BY namespace ASC",
-			ARRAY_A
-		);
+		$ns_sql = "SELECT namespace, COUNT(*) as count FROM `{$table}` WHERE namespace IS NOT NULL GROUP BY namespace ORDER BY namespace ASC"; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$rows = $wpdb->get_results( $ns_sql, ARRAY_A );
 
 		if ( ! $rows ) {
 			return array();
@@ -508,10 +506,9 @@ class Botcreds_Memory_DB {
 		global $wpdb;
 		$table = self::table_name();
 
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-		$tag_strings = $wpdb->get_col(
-			"SELECT tags FROM `{$table}` WHERE tags IS NOT NULL AND tags != ''"
-		);
+		$tag_sql = "SELECT tags FROM `{$table}` WHERE tags IS NOT NULL AND tags != ''"; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$tag_strings = $wpdb->get_col( $tag_sql );
 
 		if ( ! $tag_strings ) {
 			return array();
@@ -566,15 +563,8 @@ class Botcreds_Memory_DB {
 		global $wpdb;
 		$table = self::table_name();
 
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-		$wpdb->query(
-			"UPDATE `{$table}`
-			SET namespace = SUBSTRING(
-				memory_key,
-				1,
-				CHAR_LENGTH(memory_key) - CHAR_LENGTH(SUBSTRING_INDEX(memory_key, '/', -1)) - 1
-			)
-			WHERE namespace IS NULL AND memory_key LIKE '%/%'"
-		);
+		$backfill_sql = "UPDATE `{$table}` SET namespace = SUBSTRING( memory_key, 1, CHAR_LENGTH(memory_key) - CHAR_LENGTH(SUBSTRING_INDEX(memory_key, '/', -1)) - 1 ) WHERE namespace IS NULL AND memory_key LIKE '%/%'"; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$wpdb->query( $backfill_sql );
 	}
 }
