@@ -36,6 +36,14 @@ class Botcreds_Memory_REST_API {
 					'type'              => 'string',
 					'sanitize_callback' => 'sanitize_text_field',
 				),
+				'namespace'       => array(
+					'type'              => 'string',
+					'sanitize_callback' => 'sanitize_text_field',
+				),
+				'tag'             => array(
+					'type'              => 'string',
+					'sanitize_callback' => 'sanitize_text_field',
+				),
 				'tags'            => array(
 					'type'              => 'string',
 					'sanitize_callback' => 'sanitize_text_field',
@@ -126,6 +134,20 @@ class Botcreds_Memory_REST_API {
 			'callback'            => array( __CLASS__, 'get_status' ),
 			'permission_callback' => array( __CLASS__, 'check_auth' ),
 		) );
+
+		// GET /namespaces — List all namespaces with entry counts.
+		register_rest_route( self::NAMESPACE, '/namespaces', array(
+			'methods'             => 'GET',
+			'callback'            => array( __CLASS__, 'get_namespaces' ),
+			'permission_callback' => array( __CLASS__, 'check_auth' ),
+		) );
+
+		// GET /tags — List all tags with entry counts.
+		register_rest_route( self::NAMESPACE, '/tags', array(
+			'methods'             => 'GET',
+			'callback'            => array( __CLASS__, 'get_tags' ),
+			'permission_callback' => array( __CLASS__, 'check_auth' ),
+		) );
 	}
 
 	/**
@@ -154,12 +176,21 @@ class Botcreds_Memory_REST_API {
 			return self::semantic_search( $request );
 		}
 
+		// Build tags array — merge ?tags= (CSV) and ?tag= (single).
+		$tags = array();
+		if ( ! empty( $request->get_param( 'tags' ) ) ) {
+			$tags = array_map( 'trim', explode( ',', $request->get_param( 'tags' ) ) );
+		}
+		if ( ! empty( $request->get_param( 'tag' ) ) ) {
+			$single_tags = array_map( 'trim', explode( ',', $request->get_param( 'tag' ) ) );
+			$tags        = array_unique( array_merge( $tags, $single_tags ) );
+		}
+
 		// Standard list with optional filters.
 		$args = array(
 			'key_prefix'      => $request->get_param( 'key' ) ?? '',
-			'tags'            => ! empty( $request->get_param( 'tags' ) )
-				? array_map( 'trim', explode( ',', $request->get_param( 'tags' ) ) )
-				: array(),
+			'namespace'       => $request->get_param( 'namespace' ) ?? '',
+			'tags'            => $tags,
 			'search'          => $search ?? '',
 			'limit'           => $request->get_param( 'limit' ),
 			'offset'          => $request->get_param( 'offset' ),
@@ -187,6 +218,7 @@ class Botcreds_Memory_REST_API {
 
 		$filter_args = array(
 			'key_prefix'      => $request->get_param( 'key' ) ?? '',
+			'namespace'       => $request->get_param( 'namespace' ) ?? '',
 			'include_expired' => $request->get_param( 'include_expired' ),
 		);
 
@@ -325,6 +357,26 @@ class Botcreds_Memory_REST_API {
 			'deleted' => true,
 			'key'     => $key,
 		), 200 );
+	}
+
+	/**
+	 * GET /namespaces — Return all namespaces with entry counts.
+	 *
+	 * @return WP_REST_Response
+	 */
+	public static function get_namespaces(): WP_REST_Response {
+		$namespaces = Botcreds_Memory_DB::list_namespaces();
+		return new WP_REST_Response( array( 'namespaces' => $namespaces ), 200 );
+	}
+
+	/**
+	 * GET /tags — Return all tags with entry counts.
+	 *
+	 * @return WP_REST_Response
+	 */
+	public static function get_tags(): WP_REST_Response {
+		$tags = Botcreds_Memory_DB::list_tags();
+		return new WP_REST_Response( array( 'tags' => $tags ), 200 );
 	}
 
 	/**

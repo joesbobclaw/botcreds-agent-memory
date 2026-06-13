@@ -3,7 +3,7 @@
  * Plugin Name: BotCreds Agent Memory
  * Plugin URI:  https://botcreds.com/
  * Description: Portable memory store for AI agents. REST API + MCP endpoint. KV mode by default, semantic vector search when OpenAI key is configured.
- * Version:     2.1.0
+ * Version:     2.2.0
  * Author:      Joe Boydston
  * Author URI:  https://botcreds.com
  * License:     GPL-2.0-or-later
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'BOTCREDS_MEMORY_VERSION', '2.1.0' );
+define( 'BOTCREDS_MEMORY_VERSION', '2.2.0' );
 define( 'BOTCREDS_MEMORY_FILE', __FILE__ );
 define( 'BOTCREDS_MEMORY_DIR', plugin_dir_path( __FILE__ ) );
 
@@ -33,9 +33,10 @@ require_once BOTCREDS_MEMORY_DIR . 'includes/class-settings.php';
 require_once BOTCREDS_MEMORY_DIR . 'includes/class-hardening.php';
 
 /*
- * Activation: create the custom table.
+ * Activation: create the custom table and backfill namespaces.
  */
 register_activation_hook( BOTCREDS_MEMORY_FILE, array( 'Botcreds_Memory_DB', 'create_table' ) );
+register_activation_hook( BOTCREDS_MEMORY_FILE, array( 'Botcreds_Memory_DB', 'backfill_namespaces' ) );
 register_activation_hook( BOTCREDS_MEMORY_FILE, array( 'Botcreds_Memory_Hardening', 'on_activation' ) );
 
 /*
@@ -56,6 +57,21 @@ function botcreds_memory_deactivation() {
 	// Unschedule any pending embed events. Since they carry an entry ID arg,
 	// clear all matching events by removing the hook entirely.
 	wp_unschedule_hook( 'botcreds_memory_embed_entry' );
+}
+
+/*
+ * Upgrade existing installs: run schema migrations when DB version is behind.
+ */
+add_action( 'plugins_loaded', 'botcreds_memory_maybe_upgrade' );
+
+/**
+ * Run schema upgrades when the stored DB version is behind the current version.
+ */
+function botcreds_memory_maybe_upgrade() {
+	if ( version_compare( get_option( 'botcreds_memory_db_version', '0' ), BOTCREDS_MEMORY_VERSION, '<' ) ) {
+		Botcreds_Memory_DB::create_table();
+		Botcreds_Memory_DB::backfill_namespaces();
+	}
 }
 
 /*

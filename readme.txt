@@ -4,7 +4,7 @@ Tags: ai-agents, mcp, memory, rest-api, vector-search
 Requires at least: 5.6
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.1.0
+Stable tag: 2.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -79,6 +79,15 @@ This plugin optionally connects to the OpenAI API to generate vector embeddings 
 * **OpenAI Privacy Policy:** https://openai.com/policies/privacy-policy
 
 == Changelog ==
+
+= 2.2.0 =
+* Added: Namespaces — keys support `/`-delimited paths (e.g. `project/clawpress/brief`), auto-indexed
+* Added: `GET /namespaces` REST endpoint — browse namespace tree with entry counts
+* Added: `GET /tags` REST endpoint — list all tags with counts
+* Added: `?namespace=` and `?tag=` filter params on `GET /entries`
+* Added: MCP tools `get_by_tag`, `list_namespaces`, `list_tags`
+* Added: `namespace` and `tag` params on `list_memory` and `search_memory` MCP tools
+* Improved: tag filtering now supports `?tag=` query param (single tag) alongside existing `?tags=` (CSV)
 
 = 2.1.0 =
 * Change: Site hardening is now disabled by default. It was previously enabled by default, which could block front-end traffic on existing sites.

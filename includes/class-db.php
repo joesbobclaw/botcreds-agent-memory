@@ -37,6 +37,7 @@ class Botcreds_Memory_DB {
 		$sql = "CREATE TABLE {$table} (
 			id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 			memory_key  VARCHAR(255)    NOT NULL,
+			namespace   VARCHAR(255)    NULL DEFAULT NULL,
 			value       LONGTEXT        NOT NULL,
 			tags        TEXT            NULL,
 			author      VARCHAR(100)    NULL DEFAULT '',
@@ -47,7 +48,9 @@ class Botcreds_Memory_DB {
 			PRIMARY KEY (id),
 			UNIQUE KEY memory_key (memory_key),
 			KEY author (author),
-			KEY expires_at (expires_at)
+			KEY expires_at (expires_at),
+			KEY namespace (namespace),
+			KEY tag_csv (tags(100))
 		) ENGINE=InnoDB {$charset};";
 
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
@@ -117,6 +120,7 @@ class Botcreds_Memory_DB {
 
 		$defaults = array(
 			'key_prefix'      => '',
+			'namespace'       => '',
 			'tags'            => array(),
 			'search'          => '',
 			'limit'           => 20,
@@ -141,6 +145,14 @@ class Botcreds_Memory_DB {
 		if ( ! empty( $args['key_prefix'] ) ) {
 			$where[] = 'memory_key LIKE %s';
 			$values[] = $wpdb->esc_like( $args['key_prefix'] ) . '%';
+		}
+
+		// Namespace filter — exact match OR descendent prefix match.
+		if ( ! empty( $args['namespace'] ) ) {
+			$ns       = sanitize_text_field( $args['namespace'] );
+			$where[]  = '(namespace = %s OR namespace LIKE %s)';
+			$values[] = $ns;
+			$values[] = $wpdb->esc_like( $ns ) . '/%';
 		}
 
 		// Tag filter — match all provided tags.
@@ -222,16 +234,22 @@ class Botcreds_Memory_DB {
 		$author     = sanitize_text_field( $data['author'] ?? '' );
 		$expires_at = ! empty( $data['expires_at'] ) ? sanitize_text_field( $data['expires_at'] ) : null;
 
+		// Auto-derive namespace from key path (everything before the last `/`).
+		$namespace = ( strpos( $key, '/' ) !== false )
+			? implode( '/', array_slice( explode( '/', $key ), 0, -1 ) )
+			: null;
+
 		$existing = self::get_by_key( $key, true );
 
 		if ( $existing ) {
 			// Update existing entry.
 			$update_data = array(
-				'value'  => $value,
-				'tags'   => $tags,
-				'author' => $author,
+				'value'     => $value,
+				'tags'      => $tags,
+				'author'    => $author,
+				'namespace' => $namespace,
 			);
-			$formats = array( '%s', '%s', '%s' );
+			$formats = array( '%s', '%s', '%s', $namespace !== null ? '%s' : null );
 
 			if ( array_key_exists( 'expires_at', $data ) ) {
 				$update_data['expires_at'] = $expires_at;
@@ -239,9 +257,15 @@ class Botcreds_Memory_DB {
 				// Handle null expires_at explicitly.
 				if ( $expires_at === null ) {
 					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-					$update_sql = "UPDATE `{$table}` SET value = %s, tags = %s, author = %s, expires_at = NULL, embedding = NULL WHERE id = %d";
-					// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-					$wpdb->query( $wpdb->prepare( $update_sql, $value, $tags, $author, $existing['id'] ) );
+					if ( $namespace !== null ) {
+						$update_sql = "UPDATE `{$table}` SET value = %s, tags = %s, author = %s, expires_at = NULL, embedding = NULL, namespace = %s WHERE id = %d";
+						// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+						$wpdb->query( $wpdb->prepare( $update_sql, $value, $tags, $author, $namespace, $existing['id'] ) );
+					} else {
+						$update_sql = "UPDATE `{$table}` SET value = %s, tags = %s, author = %s, expires_at = NULL, embedding = NULL, namespace = NULL WHERE id = %d";
+						// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+						$wpdb->query( $wpdb->prepare( $update_sql, $value, $tags, $author, $existing['id'] ) );
+					}
 					return self::get_by_id( $existing['id'] );
 				}
 			}
@@ -254,7 +278,7 @@ class Botcreds_Memory_DB {
 				$table,
 				$update_data,
 				array( 'id' => $existing['id'] ),
-				array( '%s', '%s', '%s', null ), // null format for NULL value.
+				array_merge( $formats, array( null ) ), // null format for NULL embedding.
 				array( '%d' )
 			);
 
@@ -269,6 +293,11 @@ class Botcreds_Memory_DB {
 			'author'     => $author,
 		);
 		$formats = array( '%s', '%s', '%s', '%s' );
+
+		if ( $namespace !== null ) {
+			$insert_data['namespace'] = $namespace;
+			$formats[]                = '%s';
+		}
 
 		if ( $expires_at ) {
 			$insert_data['expires_at'] = $expires_at;
@@ -364,6 +393,13 @@ class Botcreds_Memory_DB {
 			$values[] = $wpdb->esc_like( $args['key_prefix'] ) . '%';
 		}
 
+		if ( ! empty( $args['namespace'] ) ) {
+			$ns       = sanitize_text_field( $args['namespace'] );
+			$where[]  = '(namespace = %s OR namespace LIKE %s)';
+			$values[] = $ns;
+			$values[] = $wpdb->esc_like( $ns ) . '/%';
+		}
+
 		$where_sql = 'WHERE ' . implode( ' AND ', $where );
 		$query     = "SELECT * FROM `{$table}` {$where_sql} ORDER BY updated_at DESC"; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
@@ -411,6 +447,7 @@ class Botcreds_Memory_DB {
 		return array(
 			'id'         => (int) $row['id'],
 			'key'        => $row['memory_key'],
+			'namespace'  => $row['namespace'] ?? null,
 			'value'      => $row['value'],
 			'tags'       => ! empty( $row['tags'] ) ? explode( ',', $row['tags'] ) : array(),
 			'author'     => $row['author'] ?? '',
@@ -430,5 +467,114 @@ class Botcreds_Memory_DB {
 		$formatted = self::format_row( $row );
 		$formatted['embedding'] = ! empty( $row['embedding'] ) ? json_decode( $row['embedding'], true ) : null;
 		return $formatted;
+	}
+
+	/**
+	 * List all namespaces with entry counts.
+	 *
+	 * @return array Array of { namespace: string, count: int } sorted alphabetically.
+	 */
+	public static function list_namespaces(): array {
+		global $wpdb;
+		$table = self::table_name();
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$rows = $wpdb->get_results(
+			"SELECT namespace, COUNT(*) as count FROM `{$table}` WHERE namespace IS NOT NULL GROUP BY namespace ORDER BY namespace ASC",
+			ARRAY_A
+		);
+
+		if ( ! $rows ) {
+			return array();
+		}
+
+		return array_map(
+			function ( $row ) {
+				return array(
+					'namespace' => $row['namespace'],
+					'count'     => (int) $row['count'],
+				);
+			},
+			$rows
+		);
+	}
+
+	/**
+	 * List all tags with entry counts, sorted descending by count.
+	 *
+	 * @return array Array of { tag: string, count: int }.
+	 */
+	public static function list_tags(): array {
+		global $wpdb;
+		$table = self::table_name();
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$tag_strings = $wpdb->get_col(
+			"SELECT tags FROM `{$table}` WHERE tags IS NOT NULL AND tags != ''"
+		);
+
+		if ( ! $tag_strings ) {
+			return array();
+		}
+
+		$counts = array();
+		foreach ( $tag_strings as $tag_str ) {
+			$tags = array_map( 'trim', explode( ',', $tag_str ) );
+			foreach ( $tags as $tag ) {
+				if ( '' !== $tag ) {
+					$counts[ $tag ] = ( $counts[ $tag ] ?? 0 ) + 1;
+				}
+			}
+		}
+
+		arsort( $counts );
+
+		$result = array();
+		foreach ( $counts as $tag => $count ) {
+			$result[] = array(
+				'tag'   => $tag,
+				'count' => $count,
+			);
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Fetch all memory entries with a given tag.
+	 *
+	 * @param string $tag   The tag to filter by.
+	 * @param int    $limit Max entries to return.
+	 * @return array Array of formatted entry rows.
+	 */
+	public static function get_by_tag( string $tag, int $limit = 100 ): array {
+		$result = self::list_entries(
+			array(
+				'tags'  => array( sanitize_text_field( $tag ) ),
+				'limit' => $limit,
+			)
+		);
+		return $result['entries'];
+	}
+
+	/**
+	 * Backfill the namespace column for existing rows whose memory_key contains '/'.
+	 *
+	 * Safe to call multiple times — only updates rows with namespace IS NULL.
+	 */
+	public static function backfill_namespaces(): void {
+		global $wpdb;
+		$table = self::table_name();
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$wpdb->query(
+			"UPDATE `{$table}`
+			SET namespace = SUBSTRING(
+				memory_key,
+				1,
+				CHAR_LENGTH(memory_key) - CHAR_LENGTH(SUBSTRING_INDEX(memory_key, '/', -1)) - 1
+			)
+			WHERE namespace IS NULL AND memory_key LIKE '%/%'"
+		);
 	}
 }

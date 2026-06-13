@@ -215,6 +215,15 @@ class Botcreds_Memory_MCP {
 			case 'search_memory':
 				return self::tool_search_memory( $id, $args );
 
+			case 'get_by_tag':
+				return self::tool_get_by_tag( $id, $args );
+
+			case 'list_namespaces':
+				return self::tool_list_namespaces( $id );
+
+			case 'list_tags':
+				return self::tool_list_tags( $id );
+
 			default:
 				return self::jsonrpc_result( $id, array(
 					'content' => array(
@@ -364,9 +373,16 @@ class Botcreds_Memory_MCP {
 	private static function tool_list_memory( $id, array $args ): WP_REST_Response {
 		$query_args = array(
 			'key_prefix' => $args['key_prefix'] ?? '',
+			'namespace'  => $args['namespace'] ?? '',
 			'tags'       => $args['tags'] ?? array(),
 			'limit'      => $args['limit'] ?? 20,
 		);
+
+		// Support single ?tag= alongside array tags.
+		if ( ! empty( $args['tag'] ) ) {
+			$extra_tags             = array_map( 'trim', explode( ',', $args['tag'] ) );
+			$query_args['tags']     = array_unique( array_merge( $query_args['tags'], $extra_tags ) );
+		}
 
 		$result  = Botcreds_Memory_DB::list_entries( $query_args );
 		$entries = Botcreds_Memory_Access_Control::filter_entries( $result['entries'] );
@@ -396,17 +412,31 @@ class Botcreds_Memory_MCP {
 		$limit      = $args['limit'] ?? 10;
 		$key_prefix = $args['key_prefix'] ?? '';
 
+		$namespace  = $args['namespace'] ?? '';
+		$tag_filter = ! empty( $args['tag'] ) ? array_map( 'trim', explode( ',', $args['tag'] ) ) : array();
+
 		if ( class_exists( 'Botcreds_Memory_Embeddings' ) && Botcreds_Memory_Embeddings::is_enabled() ) {
 			// Semantic (vector) search.
-			$filter_args             = array( 'key_prefix' => $key_prefix );
+			$filter_args             = array(
+				'key_prefix' => $key_prefix,
+				'namespace'  => $namespace,
+			);
 			$entries_with_embeddings = Botcreds_Memory_DB::get_entries_with_embeddings( $filter_args );
 			$results                 = Botcreds_Memory_Embeddings::search( $query, $entries_with_embeddings );
 			$results                 = Botcreds_Memory_Access_Control::filter_entries( $results );
-			$results                 = array_slice( $results, 0, $limit );
+			// Apply tag filter post-search when tags requested.
+			if ( ! empty( $tag_filter ) ) {
+				$results = array_values( array_filter( $results, function ( $e ) use ( $tag_filter ) {
+					return ! empty( array_intersect( $tag_filter, $e['tags'] ?? array() ) );
+				} ) );
+			}
+			$results = array_slice( $results, 0, $limit );
 		} else {
 			// Fallback: text search.
 			$search_args = array(
 				'key_prefix' => $key_prefix,
+				'namespace'  => $namespace,
+				'tags'       => $tag_filter,
 				'search'     => $query,
 				'limit'      => $limit,
 			);
@@ -417,6 +447,70 @@ class Botcreds_Memory_MCP {
 		return self::jsonrpc_result( $id, array(
 			'content' => array(
 				array( 'type' => 'text', 'text' => wp_json_encode( $results, JSON_PRETTY_PRINT ) ),
+			),
+			'isError' => false,
+		) );
+	}
+
+	// -------------------------------------------------------------------------
+	// New tool implementations (v2.2.0)
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Tool: get_by_tag — Fetch all memory entries with a given tag.
+	 *
+	 * @param mixed $id   Request id.
+	 * @param array $args Tool arguments.
+	 * @return WP_REST_Response
+	 */
+	private static function tool_get_by_tag( $id, array $args ): WP_REST_Response {
+		$tag = sanitize_text_field( $args['tag'] ?? '' );
+
+		if ( empty( $tag ) ) {
+			return self::tool_error( $id, 'Parameter "tag" is required.' );
+		}
+
+		$limit   = isset( $args['limit'] ) ? (int) $args['limit'] : 50;
+		$entries = Botcreds_Memory_DB::get_by_tag( $tag, $limit );
+		$entries = Botcreds_Memory_Access_Control::filter_entries( $entries );
+
+		return self::jsonrpc_result( $id, array(
+			'content' => array(
+				array( 'type' => 'text', 'text' => wp_json_encode( $entries, JSON_PRETTY_PRINT ) ),
+			),
+			'isError' => false,
+		) );
+	}
+
+	/**
+	 * Tool: list_namespaces — List all namespaces with entry counts.
+	 *
+	 * @param mixed $id Request id.
+	 * @return WP_REST_Response
+	 */
+	private static function tool_list_namespaces( $id ): WP_REST_Response {
+		$namespaces = Botcreds_Memory_DB::list_namespaces();
+
+		return self::jsonrpc_result( $id, array(
+			'content' => array(
+				array( 'type' => 'text', 'text' => wp_json_encode( $namespaces, JSON_PRETTY_PRINT ) ),
+			),
+			'isError' => false,
+		) );
+	}
+
+	/**
+	 * Tool: list_tags — List all tags used in the memory store with entry counts.
+	 *
+	 * @param mixed $id Request id.
+	 * @return WP_REST_Response
+	 */
+	private static function tool_list_tags( $id ): WP_REST_Response {
+		$tags = Botcreds_Memory_DB::list_tags();
+
+		return self::jsonrpc_result( $id, array(
+			'content' => array(
+				array( 'type' => 'text', 'text' => wp_json_encode( $tags, JSON_PRETTY_PRINT ) ),
 			),
 			'isError' => false,
 		) );
@@ -490,7 +584,7 @@ class Botcreds_Memory_MCP {
 			),
 			array(
 				'name'        => 'list_memory',
-				'description' => 'List memory entries, optionally filtered by key prefix or tags',
+				'description' => 'List memory entries, optionally filtered by key prefix, namespace, or tags',
 				'inputSchema' => array(
 					'type'       => 'object',
 					'properties' => array(
@@ -498,10 +592,18 @@ class Botcreds_Memory_MCP {
 							'type'        => 'string',
 							'description' => 'Filter by key prefix (e.g. joe/projects)',
 						),
+						'namespace'  => array(
+							'type'        => 'string',
+							'description' => 'Filter by namespace (e.g. joe/projects — matches exact and children)',
+						),
 						'tags'       => array(
 							'type'        => 'array',
 							'items'       => array( 'type' => 'string' ),
-							'description' => 'Filter by tags',
+							'description' => 'Filter by tags (array)',
+						),
+						'tag'        => array(
+							'type'        => 'string',
+							'description' => 'Filter by a single tag string',
 						),
 						'limit'      => array(
 							'type'        => 'integer',
@@ -524,12 +626,54 @@ class Botcreds_Memory_MCP {
 							'type'        => 'string',
 							'description' => 'Limit search to key prefix',
 						),
+						'namespace'  => array(
+							'type'        => 'string',
+							'description' => 'Limit search to namespace (exact and children)',
+						),
+						'tag'        => array(
+							'type'        => 'string',
+							'description' => 'Filter results by a single tag',
+						),
 						'limit'      => array(
 							'type'        => 'integer',
 							'description' => 'Max results (default 10)',
 						),
 					),
 					'required'   => array( 'query' ),
+				),
+			),
+			array(
+				'name'        => 'get_by_tag',
+				'description' => 'Fetch all memory entries with a given tag. Use to load a context bundle by topic label.',
+				'inputSchema' => array(
+					'type'       => 'object',
+					'properties' => array(
+						'tag'   => array(
+							'type'        => 'string',
+							'description' => 'Tag to filter by',
+						),
+						'limit' => array(
+							'type'        => 'integer',
+							'description' => 'Max results (default 50)',
+						),
+					),
+					'required'   => array( 'tag' ),
+				),
+			),
+			array(
+				'name'        => 'list_namespaces',
+				'description' => 'List all namespaces in the memory store with entry counts.',
+				'inputSchema' => array(
+					'type'       => 'object',
+					'properties' => (object) array(),
+				),
+			),
+			array(
+				'name'        => 'list_tags',
+				'description' => 'List all tags used in the memory store with entry counts.',
+				'inputSchema' => array(
+					'type'       => 'object',
+					'properties' => (object) array(),
 				),
 			),
 		);
