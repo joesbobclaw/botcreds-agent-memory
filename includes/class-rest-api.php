@@ -148,6 +148,27 @@ class Botcreds_Memory_REST_API {
 			'callback'            => array( __CLASS__, 'get_tags' ),
 			'permission_callback' => array( __CLASS__, 'check_auth' ),
 		) );
+
+		// GET /entries/revisions — Get revision history for a key.
+		register_rest_route( self::NAMESPACE, '/entries/revisions', array(
+			'methods'             => 'GET',
+			'callback'            => array( __CLASS__, 'get_entry_revisions' ),
+			'permission_callback' => array( __CLASS__, 'check_auth' ),
+			'args'                => array(
+				'key'   => array(
+					'type'              => 'string',
+					'required'          => true,
+					'sanitize_callback' => 'sanitize_text_field',
+				),
+				'limit' => array(
+					'type'              => 'integer',
+					'default'           => 20,
+					'minimum'           => 1,
+					'maximum'           => 100,
+					'sanitize_callback' => 'absint',
+				),
+			),
+		) );
 	}
 
 	/**
@@ -356,6 +377,42 @@ class Botcreds_Memory_REST_API {
 		return new WP_REST_Response( array(
 			'deleted' => true,
 			'key'     => $key,
+		), 200 );
+	}
+
+	/**
+	 * GET /entries/revisions — Return revision history for a memory key.
+	 *
+	 * @param WP_REST_Request $request The incoming request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public static function get_entry_revisions( WP_REST_Request $request ) {
+		$key = $request->get_param( 'key' );
+
+		if ( ! Botcreds_Memory_Access_Control::can_access_key( $key ) ) {
+			return new WP_Error(
+				'botcreds_memory_forbidden',
+				'You do not have access to this key namespace.',
+				array( 'status' => 403 )
+			);
+		}
+
+		$entry = Botcreds_Memory_DB::get_by_key( $key, true );
+
+		if ( ! $entry ) {
+			return new WP_Error(
+				'botcreds_memory_not_found',
+				'Entry not found.',
+				array( 'status' => 404 )
+			);
+		}
+
+		$limit     = (int) $request->get_param( 'limit' );
+		$revisions = Botcreds_Memory_DB::get_revisions( $entry['id'], $limit );
+
+		return new WP_REST_Response( array(
+			'key'       => $key,
+			'revisions' => $revisions,
 		), 200 );
 	}
 

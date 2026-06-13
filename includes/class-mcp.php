@@ -224,6 +224,9 @@ class Botcreds_Memory_MCP {
 			case 'list_tags':
 				return self::tool_list_tags( $id );
 
+			case 'get_revisions':
+				return self::tool_get_revisions( $id, $args );
+
 			default:
 				return self::jsonrpc_result( $id, array(
 					'content' => array(
@@ -516,6 +519,51 @@ class Botcreds_Memory_MCP {
 		) );
 	}
 
+	/**
+	 * Tool: get_revisions — Get revision history for a memory entry.
+	 *
+	 * @param mixed $id   Request id.
+	 * @param array $args Tool arguments.
+	 * @return WP_REST_Response
+	 */
+	private static function tool_get_revisions( $id, array $args ): WP_REST_Response {
+		$key = sanitize_text_field( $args['key'] ?? '' );
+
+		if ( empty( $key ) ) {
+			return self::tool_error( $id, 'Parameter "key" is required.' );
+		}
+
+		if ( ! Botcreds_Memory_Access_Control::can_access_key( $key ) ) {
+			return self::tool_error( $id, 'You do not have access to this key namespace.' );
+		}
+
+		$entry = Botcreds_Memory_DB::get_by_key( $key, true );
+
+		if ( ! $entry ) {
+			return self::jsonrpc_result( $id, array(
+				'content' => array(
+					array( 'type' => 'text', 'text' => "Key not found: {$key}" ),
+				),
+				'isError' => true,
+			) );
+		}
+
+		$limit     = isset( $args['limit'] ) ? (int) $args['limit'] : 10;
+		$revisions = Botcreds_Memory_DB::get_revisions( $entry['id'], $limit );
+
+		$result = array(
+			'key'       => $key,
+			'revisions' => $revisions,
+		);
+
+		return self::jsonrpc_result( $id, array(
+			'content' => array(
+				array( 'type' => 'text', 'text' => wp_json_encode( $result, JSON_PRETTY_PRINT ) ),
+			),
+			'isError' => false,
+		) );
+	}
+
 	// -------------------------------------------------------------------------
 	// Tools schema definition (shared by GET manifest and tools/list)
 	// -------------------------------------------------------------------------
@@ -674,6 +722,24 @@ class Botcreds_Memory_MCP {
 				'inputSchema' => array(
 					'type'       => 'object',
 					'properties' => (object) array(),
+				),
+			),
+			array(
+				'name'        => 'get_revisions',
+				'description' => 'Get the revision history for a memory entry. Returns who changed it, when, and a summary of what changed.',
+				'inputSchema' => array(
+					'type'       => 'object',
+					'properties' => array(
+						'key'   => array(
+							'type'        => 'string',
+							'description' => 'The exact memory key to get revisions for',
+						),
+						'limit' => array(
+							'type'        => 'integer',
+							'description' => 'Max revisions to return (default 10)',
+						),
+					),
+					'required'   => array( 'key' ),
 				),
 			),
 		);

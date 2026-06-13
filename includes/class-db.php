@@ -266,6 +266,7 @@ class Botcreds_Memory_DB {
 						// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 						$wpdb->query( $wpdb->prepare( $update_sql, $value, $tags, $author, $existing['id'] ) );
 					}
+					self::record_revision( $existing['id'], $value );
 					return self::get_by_id( $existing['id'] );
 				}
 			}
@@ -282,6 +283,7 @@ class Botcreds_Memory_DB {
 				array( '%d' )
 			);
 
+			self::record_revision( $existing['id'], $value );
 			return self::get_by_id( $existing['id'] );
 		}
 
@@ -311,7 +313,93 @@ class Botcreds_Memory_DB {
 			return null;
 		}
 
+		self::record_revision( $wpdb->insert_id, $value );
 		return self::get_by_id( $wpdb->insert_id );
+	}
+
+	/**
+	 * Record a revision snapshot for an entry.
+	 *
+	 * @param int    $entry_id The entry ID.
+	 * @param string $content  The content at the time of this revision.
+	 */
+	public static function record_revision( int $entry_id, string $content ): void {
+		global $wpdb;
+		$rev_table = self::revisions_table_name();
+
+		$user        = wp_get_current_user();
+		$author_id   = ! empty( $user->ID ) ? (int) $user->ID : null;
+		$author_name = ! empty( $user->display_name ) ? $user->display_name : ( ! empty( $user->user_login ) ? $user->user_login : null );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$wpdb->insert(
+			$rev_table,
+			array(
+				'entry_id'    => $entry_id,
+				'content'     => $content,
+				'author_id'   => $author_id,
+				'author_name' => $author_name,
+			),
+			array( '%d', '%s', $author_id !== null ? '%d' : null, $author_name !== null ? '%s' : null )
+		);
+	}
+
+	/**
+	 * Get revision history for an entry.
+	 *
+	 * @param int $entry_id The entry ID.
+	 * @param int $limit    Max revisions to return (default 50).
+	 * @return array Revisions in DESC order (newest first) with diff_from_previous.
+	 */
+	public static function get_revisions( int $entry_id, int $limit = 50 ): array {
+		global $wpdb;
+		$rev_table = self::revisions_table_name();
+
+		// Fetch all revisions in ASC order for diff computation.
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$sql = $wpdb->prepare( "SELECT * FROM `{$rev_table}` WHERE entry_id = %d ORDER BY created_at ASC", $entry_id );
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$rows = $wpdb->get_results( $sql, ARRAY_A );
+
+		if ( ! $rows ) {
+			return array();
+		}
+
+		// Compute diff_from_previous for each revision.
+		$formatted  = array();
+		$prev_lines = null;
+		foreach ( $rows as $row ) {
+			$curr_lines   = explode( "\n", $row['content'] );
+			$diff_summary = null;
+
+			if ( $prev_lines !== null ) {
+				$added   = count( array_diff( $curr_lines, $prev_lines ) );
+				$removed = count( array_diff( $prev_lines, $curr_lines ) );
+				$parts   = array();
+				if ( $added > 0 ) {
+					$parts[] = '+' . $added . ' ' . ( 1 === $added ? 'line' : 'lines' );
+				}
+				if ( $removed > 0 ) {
+					$parts[] = '-' . $removed . ' ' . ( 1 === $removed ? 'line' : 'lines' );
+				}
+				$diff_summary = ! empty( $parts ) ? implode( ', ', $parts ) : 'no change';
+			}
+
+			$formatted[] = array(
+				'id'                 => (int) $row['id'],
+				'entry_id'           => (int) $row['entry_id'],
+				'content'            => $row['content'],
+				'author_id'          => $row['author_id'] !== null ? (int) $row['author_id'] : null,
+				'author_name'        => $row['author_name'],
+				'created_at'         => $row['created_at'],
+				'diff_from_previous' => $diff_summary,
+			);
+
+			$prev_lines = $curr_lines;
+		}
+
+		// Return in DESC order (newest first) and apply limit.
+		return array_slice( array_reverse( $formatted ), 0, $limit );
 	}
 
 	/**

@@ -4,7 +4,7 @@ Tags: ai-agents, mcp, memory, rest-api, vector-search
 Requires at least: 5.6
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.2.0
+Stable tag: 2.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -79,6 +79,12 @@ This plugin optionally connects to the OpenAI API to generate vector embeddings 
 * **OpenAI Privacy Policy:** https://openai.com/policies/privacy-policy
 
 == Changelog ==
+
+= 2.3.0 =
+* Added: Revision history — every write creates a revision with author attribution
+* Added: `GET /entries/revisions?key=` REST endpoint — full audit trail per entry
+* Added: MCP tool `get_revisions(key)` — ask who changed what and when
+* Added: Author capture on all writes (WP user id + display name)
 
 = 2.2.0 =
 * Added: Namespaces — keys support `/`-delimited paths (e.g. `project/clawpress/brief`), auto-indexed
