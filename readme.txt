@@ -4,7 +4,7 @@ Tags: ai-agents, mcp, memory, rest-api, vector-search
 Requires at least: 5.6
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.3.0
+Stable tag: 2.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -41,6 +41,18 @@ Use this plugin to give your AI assistants persistent memory across sessions, sh
 3. (Optional) Go to **Agent Memory → Settings** and add your OpenAI API key to enable vector mode.
 4. Create a WordPress Application Password for your agent under **Users → Profile → Application Passwords**.
 5. Use the REST API at `/wp-json/botcreds-memory/v1/` with Basic Auth.
+
+== Codex Integration ==
+
+BotCreds Agent Memory ships official tool adapters for OpenAI Codex in `assets/codex/`.
+
+**Quick start:**
+
+1. Set env vars: `BOTCREDS_MEMORY_URL` (your WP site) and `BOTCREDS_MEMORY_KEY` (`username:app_password`)
+2. Copy `assets/codex/AGENTS.md` content into your project's `AGENTS.md`
+3. Import tools in your Codex task: `import tools from './assets/codex/memory-tools.js'` (JS) or add `memory-tools.py` to your repo
+
+Full docs: https://botcreds.com/agent-memory/
 
 == Frequently Asked Questions ==
 
@@ -79,6 +91,9 @@ This plugin optionally connects to the OpenAI API to generate vector embeddings 
 * **OpenAI Privacy Policy:** https://openai.com/policies/privacy-policy
 
 == Changelog ==
+
+= 2.4.0 =
+* Added Codex integration — tool adapters and AGENTS.md snippet in assets/codex/
 
 = 2.3.0 =
 * Added: Revision history — every write creates a revision with author attribution
