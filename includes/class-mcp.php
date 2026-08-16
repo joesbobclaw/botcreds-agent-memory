@@ -742,6 +742,56 @@ class Botcreds_Memory_MCP {
 					'required'   => array( 'key' ),
 				),
 			),
+			array(
+				'name'        => 'memory_link',
+				'description' => 'Create a relationship between two memory entries. Links them in the memory graph.',
+				'inputSchema' => array(
+					'type'       => 'object',
+					'properties' => array(
+						'source_key' => array(
+							'type'        => 'string',
+							'description' => 'The source entry key',
+						),
+						'target_key' => array(
+							'type'        => 'string',
+							'description' => 'The target entry key',
+						),
+						'rel_type'   => array(
+							'type'        => 'string',
+							'description' => 'Relationship type: references, parent, see-also, supersedes (default: references)',
+						),
+					),
+					'required'   => array( 'source_key', 'target_key' ),
+				),
+			),
+			array(
+				'name'        => 'memory_links',
+				'description' => 'List all relationships (outgoing and incoming) for a memory entry.',
+				'inputSchema' => array(
+					'type'       => 'object',
+					'properties' => array(
+						'key' => array(
+							'type'        => 'string',
+							'description' => 'The memory key to get relationships for',
+						),
+					),
+					'required'   => array( 'key' ),
+				),
+			),
+			array(
+				'name'        => 'memory_unlink',
+				'description' => 'Delete a relationship between two memory entries by relationship ID.',
+				'inputSchema' => array(
+					'type'       => 'object',
+					'properties' => array(
+						'relationship_id' => array(
+							'type'        => 'integer',
+							'description' => 'The relationship ID to delete',
+						),
+					),
+					'required'   => array( 'relationship_id' ),
+				),
+			),
 		);
 	}
 

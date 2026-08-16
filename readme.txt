@@ -92,6 +92,15 @@ This plugin optionally connects to the OpenAI API to generate vector embeddings 
 
 == Changelog ==
 
+= 3.0.0 =
+* New: Entry relationships — create typed links between entries (references, parent, see-also, supersedes)
+* New: REST endpoints for relationship CRUD: POST/GET/DELETE /entries/{key}/relationships
+* New: MCP tools: memory_link, memory_links, memory_unlink
+* New: Relationship stats endpoint: GET /relationships/stats
+* New: Settings page Relationships tab with counts and recent relationships
+* Updated: Plugin description to reflect multi-harness support
+* Updated: Version bump to 3.0.0
+
 = 2.4.0 =
 * Added Codex integration — tool adapters and AGENTS.md snippet in assets/codex/
 

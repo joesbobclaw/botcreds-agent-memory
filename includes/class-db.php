@@ -57,6 +57,33 @@ class Botcreds_Memory_DB {
 		dbDelta( $sql );
 
 		update_option( 'botcreds_memory_db_version', BOTCREDS_MEMORY_VERSION );
+
+		// Create relationships table.
+		$rel_table = self::relationships_table_name();
+		$rel_sql   = "CREATE TABLE {$rel_table} (
+			id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			source_id   BIGINT UNSIGNED NOT NULL,
+			target_id   BIGINT UNSIGNED NOT NULL,
+			rel_type    VARCHAR(50)     NOT NULL DEFAULT 'references',
+			created_at  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY (id),
+			UNIQUE KEY rel_unique (source_id, target_id, rel_type),
+			KEY target (target_id),
+			KEY rel_type (rel_type)
+		) ENGINE=InnoDB {$charset};";
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		dbDelta( $rel_sql );
+	}
+
+	/**
+	 * Get the relationships table name including WP prefix.
+	 *
+	 * @return string
+	 */
+	public static function relationships_table_name(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'botcreds_memory_relationships';
 	}
 
 	/**
@@ -654,5 +681,193 @@ class Botcreds_Memory_DB {
 		$backfill_sql = "UPDATE `{$table}` SET namespace = SUBSTRING( memory_key, 1, CHAR_LENGTH(memory_key) - CHAR_LENGTH(SUBSTRING_INDEX(memory_key, '/', -1)) - 1 ) WHERE namespace IS NULL AND memory_key LIKE '%/%'"; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$wpdb->query( $backfill_sql );
+	}
+
+	// -----------------------------------------------------------------------
+	// Relationship CRUD
+	// -----------------------------------------------------------------------
+
+	/**
+	 * Create a relationship between two entries.
+	 *
+	 * @param int    $source_id  Source entry ID.
+	 * @param int    $target_id  Target entry ID.
+	 * @param string $rel_type   Relationship type (references, parent, see-also, supersedes).
+	 * @return array|null The created relationship row, or null on failure.
+	 */
+	public static function create_relationship( int $source_id, int $target_id, string $rel_type = 'references' ): ?array {
+		global $wpdb;
+
+		// Prevent self-references.
+		if ( $source_id === $target_id ) {
+			return null;
+		}
+
+		// Validate both entries exist.
+		$source = self::get_by_id( $source_id );
+		$target = self::get_by_id( $target_id );
+		if ( ! $source || ! $target ) {
+			return null;
+		}
+
+		$rel_table = self::relationships_table_name();
+		$rel_type  = sanitize_text_field( $rel_type );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$wpdb->insert(
+			$rel_table,
+			array(
+				'source_id'  => $source_id,
+				'target_id'  => $target_id,
+				'rel_type'   => $rel_type,
+				'created_at' => current_time( 'mysql', true ),
+			),
+			array( '%d', '%d', '%s', '%s' )
+		);
+
+		if ( ! $wpdb->insert_id ) {
+			// Maybe already exists (unique key). Try to fetch it.
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			$existing = $wpdb->get_row(
+				$wpdb->prepare(
+					"SELECT * FROM `{$rel_table}` WHERE source_id = %d AND target_id = %d AND rel_type = %s",
+					$source_id, $target_id, $rel_type
+				),
+				ARRAY_A
+			);
+			return $existing ? self::format_relationship( $existing ) : null;
+		}
+
+		return array(
+			'id'         => (int) $wpdb->insert_id,
+			'source_id'  => $source_id,
+			'target_id'  => $target_id,
+			'rel_type'   => $rel_type,
+			'created_at' => current_time( 'mysql', true ),
+		);
+	}
+
+	/**
+	 * Get all relationships for an entry (both outgoing and incoming).
+	 *
+	 * @param int $entry_id The entry ID.
+	 * @return array { outgoing: array[], incoming: array[] }
+	 */
+	public static function get_relationships( int $entry_id ): array {
+		global $wpdb;
+		$rel_table = self::relationships_table_name();
+		$mem_table = self::table_name();
+
+		// Outgoing relationships (this entry is the source).
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$outgoing = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT r.*, t.memory_key AS target_key
+				 FROM `{$rel_table}` r
+				 JOIN `{$mem_table}` t ON r.target_id = t.id
+				 WHERE r.source_id = %d
+				 ORDER BY r.created_at DESC",
+				$entry_id
+			),
+			ARRAY_A
+		);
+
+		// Incoming relationships (this entry is the target).
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$incoming = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT r.*, s.memory_key AS source_key
+				 FROM `{$rel_table}` r
+				 JOIN `{$mem_table}` s ON r.source_id = s.id
+				 WHERE r.target_id = %d
+				 ORDER BY r.created_at DESC",
+				$entry_id
+			),
+			ARRAY_A
+		);
+
+		return array(
+			'outgoing' => array_map( array( __CLASS__, 'format_relationship' ), $outgoing ?: array() ),
+			'incoming' => array_map( array( __CLASS__, 'format_relationship_incoming' ), $incoming ?: array() ),
+		);
+	}
+
+	/**
+	 * Delete a relationship by ID.
+	 *
+	 * @param int $rel_id The relationship ID.
+	 * @return bool True if deleted.
+	 */
+	public static function delete_relationship( int $rel_id ): bool {
+		global $wpdb;
+		$rel_table = self::relationships_table_name();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$deleted = $wpdb->delete( $rel_table, array( 'id' => $rel_id ), array( '%d' ) );
+		return $deleted > 0;
+	}
+
+	/**
+	 * Count relationships by type.
+	 *
+	 * @return array Array of { rel_type: string, count: int }.
+	 */
+	public static function count_relationships_by_type(): array {
+		global $wpdb;
+		$rel_table = self::relationships_table_name();
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$rows = $wpdb->get_results(
+			"SELECT rel_type, COUNT(*) as count FROM `{$rel_table}` GROUP BY rel_type ORDER BY count DESC",
+			ARRAY_A
+		);
+
+		if ( ! $rows ) {
+			return array();
+		}
+
+		return array_map(
+			function ( $row ) {
+				return array(
+					'rel_type' => $row['rel_type'],
+					'count'    => (int) $row['count'],
+				);
+			},
+			$rows
+		);
+	}
+
+	/**
+	 * Format a relationship row for API output (outgoing).
+	 *
+	 * @param array $row Raw DB row.
+	 * @return array Formatted.
+	 */
+	private static function format_relationship( array $row ): array {
+		return array(
+			'id'         => (int) $row['id'],
+			'source_id'  => (int) $row['source_id'],
+			'target_id'  => (int) $row['target_id'],
+			'target_key' => $row['target_key'] ?? '',
+			'rel_type'   => $row['rel_type'],
+			'created_at' => $row['created_at'],
+		);
+	}
+
+	/**
+	 * Format a relationship row for API output (incoming).
+	 *
+	 * @param array $row Raw DB row.
+	 * @return array Formatted.
+	 */
+	private static function format_relationship_incoming( array $row ): array {
+		return array(
+			'id'         => (int) $row['id'],
+			'source_id'  => (int) $row['source_id'],
+			'source_key' => $row['source_key'] ?? '',
+			'target_id'  => (int) $row['target_id'],
+			'rel_type'   => $row['rel_type'],
+			'created_at' => $row['created_at'],
+		);
 	}
 }

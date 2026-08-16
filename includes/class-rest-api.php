@@ -128,6 +128,50 @@ class Botcreds_Memory_REST_API {
 			),
 		) );
 
+		// GET /entries/{key}/relationships — List relationships for an entry.
+		register_rest_route( self::NAMESPACE, '/entries/(?P<key>[a-zA-Z0-9/_\-\.]+)/relationships', array(
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( __CLASS__, 'get_relationships' ),
+				'permission_callback' => array( __CLASS__, 'check_auth' ),
+			),
+		) );
+
+		// POST /entries/{key}/relationships — Create a relationship.
+		register_rest_route( self::NAMESPACE, '/entries/(?P<key>[a-zA-Z0-9/_\-\.]+)/relationships', array(
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( __CLASS__, 'create_relationship' ),
+				'permission_callback' => array( __CLASS__, 'check_auth' ),
+				'args'                => array(
+					'target_key' => array(
+						'type'     => 'string',
+						'required' => true,
+					),
+					'rel_type'   => array(
+						'type'    => 'string',
+						'default' => 'references',
+					),
+				),
+			),
+		) );
+
+		// DELETE /entries/{key}/relationships/{id} — Delete a relationship.
+		register_rest_route( self::NAMESPACE, '/entries/(?P<key>[a-zA-Z0-9/_\-\.]+)/relationships/(?P<rel_id>[0-9]+)', array(
+			array(
+				'methods'             => 'DELETE',
+				'callback'            => array( __CLASS__, 'delete_relationship' ),
+				'permission_callback' => array( __CLASS__, 'check_auth' ),
+			),
+		) );
+
+		// GET /relationships/stats — Relationship counts by type.
+		register_rest_route( self::NAMESPACE, '/relationships/stats', array(
+			'methods'             => 'GET',
+			'callback'            => array( __CLASS__, 'get_relationship_stats' ),
+			'permission_callback' => array( __CLASS__, 'check_auth' ),
+		) );
+
 		// GET /status — Plugin status.
 		register_rest_route( self::NAMESPACE, '/status', array(
 			'methods'             => 'GET',
@@ -434,6 +478,89 @@ class Botcreds_Memory_REST_API {
 	public static function get_tags(): WP_REST_Response {
 		$tags = Botcreds_Memory_DB::list_tags();
 		return new WP_REST_Response( array( 'tags' => $tags ), 200 );
+	}
+
+	/**
+	 * GET /entries/{key}/relationships — List relationships for an entry.
+	 *
+	 * @param WP_REST_Request $request
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public static function get_relationships( WP_REST_Request $request ) {
+		$key = $request->get_param( 'key' );
+
+		if ( ! Botcreds_Memory_Access_Control::can_access_key( $key ) ) {
+			return new WP_Error( 'botcreds_memory_forbidden', 'Access denied.', array( 'status' => 403 ) );
+		}
+
+		$entry = Botcreds_Memory_DB::get_by_key( $key, true );
+		if ( ! $entry ) {
+			return new WP_Error( 'botcreds_memory_not_found', 'Entry not found.', array( 'status' => 404 ) );
+		}
+
+		$rels = Botcreds_Memory_DB::get_relationships( $entry['id'] );
+		return new WP_REST_Response( $rels, 200 );
+	}
+
+	/**
+	 * POST /entries/{key}/relationships — Create a relationship.
+	 *
+	 * @param WP_REST_Request $request
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public static function create_relationship( WP_REST_Request $request ) {
+		$key        = $request->get_param( 'key' );
+		$target_key = sanitize_text_field( $request->get_param( 'target_key' ) );
+		$rel_type   = sanitize_text_field( $request->get_param( 'rel_type' ) ) ?: 'references';
+
+		if ( ! Botcreds_Memory_Access_Control::can_access_key( $key ) ) {
+			return new WP_Error( 'botcreds_memory_forbidden', 'Access denied.', array( 'status' => 403 ) );
+		}
+
+		$source = Botcreds_Memory_DB::get_by_key( $key, true );
+		$target = Botcreds_Memory_DB::get_by_key( $target_key, true );
+		if ( ! $source || ! $target ) {
+			return new WP_Error( 'botcreds_memory_not_found', 'Source or target entry not found.', array( 'status' => 404 ) );
+		}
+
+		$rel = Botcreds_Memory_DB::create_relationship( $source['id'], $target['id'], $rel_type );
+		if ( ! $rel ) {
+			return new WP_Error( 'botcreds_memory_rel_failed', 'Could not create relationship.', array( 'status' => 500 ) );
+		}
+
+		return new WP_REST_Response( $rel, 201 );
+	}
+
+	/**
+	 * DELETE /entries/{key}/relationships/{id} — Delete a relationship.
+	 *
+	 * @param WP_REST_Request $request
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public static function delete_relationship( WP_REST_Request $request ) {
+		$key    = $request->get_param( 'key' );
+		$rel_id = (int) $request->get_param( 'rel_id' );
+
+		if ( ! Botcreds_Memory_Access_Control::can_access_key( $key ) ) {
+			return new WP_Error( 'botcreds_memory_forbidden', 'Access denied.', array( 'status' => 403 ) );
+		}
+
+		$deleted = Botcreds_Memory_DB::delete_relationship( $rel_id );
+		if ( ! $deleted ) {
+			return new WP_Error( 'botcreds_memory_not_found', 'Relationship not found.', array( 'status' => 404 ) );
+		}
+
+		return new WP_REST_Response( array( 'deleted' => true, 'id' => $rel_id ), 200 );
+	}
+
+	/**
+	 * GET /relationships/stats — Relationship counts by type.
+	 *
+	 * @return WP_REST_Response
+	 */
+	public static function get_relationship_stats(): WP_REST_Response {
+		$stats = Botcreds_Memory_DB::count_relationships_by_type();
+		return new WP_REST_Response( array( 'relationships' => $stats ), 200 );
 	}
 
 	/**
