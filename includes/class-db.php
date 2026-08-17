@@ -74,6 +74,23 @@ class Botcreds_Memory_DB {
 
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		dbDelta( $rel_sql );
+
+		// Create revisions table.
+		$rev_table = self::revisions_table_name();
+		$rev_sql   = "CREATE TABLE {$rev_table} (
+			id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			entry_id    BIGINT UNSIGNED NOT NULL,
+			content     LONGTEXT        NOT NULL,
+			author_id   BIGINT UNSIGNED NULL DEFAULT NULL,
+			author_name VARCHAR(200)   NULL DEFAULT NULL,
+			created_at  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY (id),
+			KEY entry_id (entry_id),
+			KEY author_id (author_id)
+		) ENGINE=InnoDB {$charset};";
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		dbDelta( $rev_sql );
 	}
 
 	/**
@@ -84,6 +101,16 @@ class Botcreds_Memory_DB {
 	public static function relationships_table_name(): string {
 		global $wpdb;
 		return $wpdb->prefix . 'botcreds_memory_relationships';
+	}
+
+	/**
+	 * Get the revisions table name including WP prefix.
+	 *
+	 * @return string
+	 */
+	public static function revisions_table_name(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'botcreds_memory_revisions';
 	}
 
 	/**
