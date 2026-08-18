@@ -63,6 +63,16 @@ class Botcreds_Memory_Settings {
 			'botcreds-memory-access',
 			array( __CLASS__, 'render_access_page' )
 		);
+
+		// Setup Guide submenu.
+		add_submenu_page(
+			'botcreds-memory-entries',
+			__( 'Setup Guide', 'botcreds-agent-memory' ),
+			__( 'Setup Guide', 'botcreds-agent-memory' ),
+			'manage_options',
+			'botcreds-memory-setup',
+			array( __CLASS__, 'render_setup_page' )
+		);
 	}
 
 	/**
@@ -480,6 +490,242 @@ class Botcreds_Memory_Settings {
 					<?php endforeach; ?>
 				</tbody>
 			</table>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Render the Setup Guide admin page.
+	 * Shows per-harness connection instructions with copy-paste config.
+	 */
+	public static function render_setup_page(): void {
+		$site_url = rtrim( site_url(), '/' );
+		$rest_base = $site_url . '/wp-json/botcreds-memory/v1';
+		$mcp_url = $rest_base . '/mcp';
+		$profile_url = admin_url( 'profile.php' ) . '#botcreds_memory_prefixes';
+		$codex_js_url = plugins_url( 'assets/codex/memory-tools.js', BOTCREDS_MEMORY_FILE );
+		$codex_py_url = plugins_url( 'assets/codex/memory-tools.py', BOTCREDS_MEMORY_FILE );
+		$codex_agents_url = plugins_url( 'assets/codex/AGENTS.md', BOTCREDS_MEMORY_FILE );
+
+		// Check if a specific harness is highlighted via query param.
+		$highlight = isset( $_GET['harness'] ) ? sanitize_text_field( $_GET['harness'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		?>
+		<div class="wrap botcreds-memory-wrap">
+			<h1><?php esc_html_e( 'Agent Setup Guide', 'botcreds-agent-memory' ); ?></h1>
+			<p class="description">
+				<?php esc_html_e( 'Connect AI agent harnesses to this memory store. Each section below has copy-paste config.', 'botcreds-agent-memory' ); ?>
+			</p>
+
+			<p>
+				<a href="<?php echo esc_url( $profile_url ); ?>" class="button button-secondary" target="_blank">
+					<?php esc_html_e( 'Create Application Password', 'botcreds-agent-memory' ); ?>
+				</a>
+				<span class="description">
+					<?php esc_html_e( '→ Scroll to "Application Passwords" → enter a name → copy the generated password.', 'botcreds-agent-memory' ); ?>
+				</span>
+			</p>
+
+			<!-- OpenClaw -->
+			<div class="botcreds-setup-section" id="harness-openclaw" <?php echo $highlight === 'openclaw' ? 'style="border-left:4px solid #2271b1;padding-left:12px;"' : ''; ?>>
+				<h2 dashicons-admin-generic"><?php esc_html_e( 'OpenClaw', 'botcreds-agent-memory' ); ?></h2>
+				<p><?php esc_html_e( 'Add agent-memory as a plugin entry in your OpenClaw gateway config:', 'botcreds-agent-memory' ); ?></p>
+				<pre class="botcreds-copy-block"><code>{
+  "plugins": {
+    "entries": {
+      "agent-memory": {
+        "enabled": true,
+        "config": {
+          "siteUrl": "<?php echo esc_html( $site_url ); ?>",
+          "username": "YOUR_WP_USERNAME",
+          "appPassword": "YOUR_APP_PASSWORD"
+        }
+      }
+    }
+  }
+}</code></pre>
+				<p class="description">
+					<?php esc_html_e( 'REST API base:', 'botcreds-agent-memory' ); ?> <code><?php echo esc_html( $rest_base ); ?></code>
+				</p>
+			</div>
+
+			<hr />
+
+			<!-- Claude Desktop -->
+			<div class="botcreds-setup-section" id="harness-claude-desktop" <?php echo $highlight === 'claude-desktop' ? 'style="border-left:4px solid #2271b1;padding-left:12px;"' : ''; ?>>
+				<h2><?php esc_html_e( 'Claude Desktop (MCP)', 'botcreds-agent-memory' ); ?></h2>
+				<p><?php esc_html_e( 'Add this to your Claude Desktop config (claude_desktop_config.json):', 'botcreds-agent-memory' ); ?></p>
+				<pre class="botcreds-copy-block"><code>{
+  "mcpServers": {
+    "agent-memory": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "<?php echo esc_html( $mcp_url ); ?>",
+        "--header",
+        "Authorization:Basic BASE64_ENCODED_CREDENTIALS"
+      ]
+    }
+  }
+}</code></pre>
+				<p class="description">
+					<?php esc_html_e( 'Encode your credentials as base64:', 'botcreds-agent-memory' ); ?>
+					<code>echo -n 'USERNAME:APP_PASSWORD' | base64</code>
+				</p>
+			</div>
+
+			<hr />
+
+			<!-- Claude Code -->
+			<div class="botcreds-setup-section" id="harness-claude-code" <?php echo $highlight === 'claude-code' ? 'style="border-left:4px solid #2271b1;padding-left:12px;"' : ''; ?>>
+				<h2><?php esc_html_e( 'Claude Code / Codex', 'botcreds-agent-memory' ); ?></h2>
+				<p><?php esc_html_e( 'Use the bundled tool adapters for direct REST API access (no MCP proxy needed):', 'botcreds-agent-memory' ); ?></p>
+				<p>
+					<strong><?php esc_html_e( 'JavaScript (Node 18+):', 'botcreds-agent-memory' ); ?></strong>
+					<a href="<?php echo esc_url( $codex_js_url ); ?>" download>memory-tools.js</a>
+				</p>
+				<p>
+					<strong><?php esc_html_e( 'Python (stdlib only):', 'botcreds-agent-memory' ); ?></strong>
+					<a href="<?php echo esc_url( $codex_py_url ); ?>" download>memory-tools.py</a>
+				</p>
+				<p>
+					<strong><?php esc_html_e( 'AGENTS.md drop-in snippet:', 'botcreds-agent-memory' ); ?></strong>
+					<a href="<?php echo esc_url( $codex_agents_url ); ?>" download>AGENTS.md</a>
+				</p>
+				<p class="description">
+					<?php esc_html_e( 'Set these environment variables:', 'botcreds-agent-memory' ); ?>
+				</p>
+				<pre class="botcreds-copy-block"><code>BOTCREDS_MEMORY_URL=<?php echo esc_html( $rest_base ); ?>
+BOTCREDS_MEMORY_USER=YOUR_WP_USERNAME
+BOTCREDS_MEMORY_PASS=YOUR_APP_PASSWORD</code></pre>
+			</div>
+
+			<hr />
+
+			<!-- ChatGPT -->
+			<div class="botcreds-setup-section" id="harness-chatgpt" <?php echo $highlight === 'chatgpt' ? 'style="border-left:4px solid #2271b1;padding-left:12px;"' : ''; ?>>
+				<h2><?php esc_html_e( 'ChatGPT (Custom GPT)', 'botcreds-agent-memory' ); ?></h2>
+				<p><?php esc_html_e( 'Create a Custom GPT with a GPT Action pointing at the REST API:', 'botcreds-agent-memory' ); ?></p>
+				<ol>
+					<li><?php esc_html_e( 'Go to chatgpt.com/gpts/editor → Configure tab', 'botcreds-agent-memory' ); ?></li>
+					<li><?php esc_html_e( 'Add a new Action', 'botcreds-agent-memory' ); ?></li>
+					<li><?php esc_html_e( 'Paste the OpenAPI schema below (update the server URL)', 'botcreds-agent-memory' ); ?></li>
+					<li><?php esc_html_e( 'Set Authentication to "Basic" and enter username:app_password (no spaces in password)', 'botcreds-agent-memory' ); ?></li>
+				</ol>
+				<pre class="botcreds-copy-block"><code>{
+  "openapi": "3.0.0",
+  "info": { "title": "Agent Memory", "version": "1.0.0" },
+  "servers": [ { "url": "<?php echo esc_html( $rest_base ); ?>" } ],
+  "paths": {
+    "/entries": {
+      "get": {
+        "summary": "List memory entries",
+        "operationId": "listEntries",
+        "parameters": [
+          { "name": "search", "in": "query", "schema": { "type": "string" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      },
+      "post": {
+        "summary": "Create or update a memory entry",
+        "operationId": "createEntry",
+        "requestBody": {
+          "content": { "application/json": { "schema": {
+            "type": "object",
+            "properties": {
+              "key": { "type": "string" },
+              "value": { "type": "string" },
+              "tags": { "type": "array", "items": { "type": "string" } },
+              "author": { "type": "string" }
+            },
+            "required": ["key", "value"]
+          } } }
+        },
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/entries/by-key": {
+      "get": {
+        "summary": "Get entry by key",
+        "operationId": "getEntryByKey",
+        "parameters": [
+          { "name": "key", "in": "query", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      },
+      "delete": {
+        "summary": "Delete entry by key",
+        "operationId": "deleteEntryByKey",
+        "parameters": [
+          { "name": "key", "in": "query", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/status": {
+      "get": {
+        "summary": "Get plugin status",
+        "operationId": "getStatus",
+        "responses": { "200": { "description": "OK" } }
+      }
+    }
+  }
+}</code></pre>
+				<p class="description">
+					<?php esc_html_e( 'Note: paste the app password without spaces. GPT Actions base64-encodes the credentials field automatically.', 'botcreds-agent-memory' ); ?>
+				</p>
+			</div>
+
+			<hr />
+
+			<!-- Codex MCP -->
+			<div class="botcreds-setup-section" id="harness-codex" <?php echo $highlight === 'codex' ? 'style="border-left:4px solid #2271b1;padding-left:12px;"' : ''; ?>>
+				<h2><?php esc_html_e( 'Codex (MCP endpoint)', 'botcreds-agent-memory' ); ?></h2>
+				<p><?php esc_html_e( 'Configure Codex to connect via MCP JSON-RPC:', 'botcreds-agent-memory' ); ?></p>
+				<pre class="botcreds-copy-block"><code># Codex MCP config
+url = "<?php echo esc_html( $mcp_url ); ?>"
+auth = "basic"
+username = "Codex"
+password = "YOUR_APP_PASSWORD"</code></pre>
+				<p class="description">
+					<?php esc_html_e( 'Create a WordPress user named "Codex", then generate an app password for it. The MCP endpoint supports all 12 tools including memory_link, memory_links, memory_unlink.', 'botcreds-agent-memory' ); ?>
+				</p>
+			</div>
+
+			<hr />
+
+			<!-- Shareable links -->
+			<div class="botcreds-setup-section">
+				<h2><?php esc_html_e( 'Send a Link to an Agent', 'botcreds-agent-memory' ); ?></h2>
+				<p><?php esc_html_e( 'These links open this page with a specific harness highlighted:', 'botcreds-agent-memory' ); ?></p>
+				<p>
+					<a href="<?php echo esc_url( admin_url( 'admin.php?page=botcreds-memory-setup&harness=openclaw' ) ); ?>" class="button button-small">OpenClaw</a>
+					<a href="<?php echo esc_url( admin_url( 'admin.php?page=botcreds-memory-setup&harness=claude-desktop' ) ); ?>" class="button button-small">Claude Desktop</a>
+					<a href="<?php echo esc_url( admin_url( 'admin.php?page=botcreds-memory-setup&harness=claude-code' ) ); ?>" class="button button-small">Claude Code</a>
+					<a href="<?php echo esc_url( admin_url( 'admin.php?page=botcreds-memory-setup&harness=chatgpt' ) ); ?>" class="button button-small">ChatGPT</a>
+					<a href="<?php echo esc_url( admin_url( 'admin.php?page=botcreds-memory-setup&harness=codex' ) ); ?>" class="button button-small">Codex</a>
+				</p>
+			</div>
+
+			<script>
+				// Copy-to-clipboard for code blocks.
+				document.querySelectorAll( '.botcreds-copy-block' ).forEach( function( block ) {
+					var btn = document.createElement( 'button' );
+					btn.textContent = 'Copy';
+					btn.className = 'button button-small botcreds-copy-btn';
+					btn.style.cssText = 'position:absolute;margin-top:-32px;float:right;';
+					btn.onclick = function() {
+						var code = block.querySelector( 'code' );
+						navigator.clipboard.writeText( code.textContent ).then( function() {
+							btn.textContent = 'Copied!';
+							setTimeout( function() { btn.textContent = 'Copy'; }, 2000 );
+						} );
+					};
+					block.style.position = 'relative';
+					block.appendChild( btn );
+				} );
+			</script>
 		</div>
 		<?php
 	}
